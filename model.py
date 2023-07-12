@@ -2,6 +2,8 @@ import clip
 import torch.nn as nn
 import torch
 from resnetcifar import ResNet18_cifar10, ResNet50_cifar10,ResNet18_mnist,ResNet18_cifar10_align
+import numpy as np
+
 class orthogonal(nn.Module):
     def __init__(self,feat_dim=128,class_num=10):
         super(orthogonal,self).__init__()
@@ -87,7 +89,7 @@ class SimpleCNN_header(nn.Module):
 
 class model_cifar(nn.Module):
     def __init__(self,model_name, encoder_list=["identity"],encoder_para_list=None, \
-        head_list=["linear"],head_para_list={"in_dim":256,"out_dim":10}, n_classes=10):
+        head_list=["linear"],head_para_list={"in_dim":256,"out_dim":10}):
         super(model_cifar, self).__init__()
         if "resnet18" in model_name:
             basemodel = ResNet18_cifar10()
@@ -157,7 +159,7 @@ class model_clip(nn.Module):
     #     # from string(list) to (b,77)
     #     txt_vec=clip.tokenize(text)
         
-    def forward(image,text):
+    def forward(self,image,text):
         # image: (b,3,224,224)g
         # text:
         image_features = self.model.encode_image(image)

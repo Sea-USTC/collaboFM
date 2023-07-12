@@ -100,12 +100,15 @@ if __name__=="__main__":
     
     
     client_manager=Client_Manager_base(control_config,basic_config)
-    client_manager.create_raw_data()
-    client_manager.create_fed_split_index()
-    
-    if control_config.load_all_dataset==True:
-        client_manager.create_all_datasets(train_batchsize=control_config.train_batchsize,\
-            test_batchsize=control_config.test_batchsize,num_workers=8)
+
+    if control_config.client_resource:
+        client_manager.create_multi_task_index_datasets()
+    else:
+        #client_resource is an empty dict
+        client_manager.create_fed_split_index()    
+        if control_config.load_all_dataset==True:
+            client_manager.create_all_datasets(train_batchsize=control_config.train_batchsize,\
+                test_batchsize=control_config.test_batchsize,num_workers=8)
     # if control_config.load_all_model==True:
     client_manager.create_all_models()
     

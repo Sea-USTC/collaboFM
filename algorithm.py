@@ -40,6 +40,7 @@ class Algorithm_Manager():
         train_batchsize=self.control_config.train_batchsize
         test_batchsize=self.control_config.test_batchsize
         num_workers=8
+        #build_data only build one certain dataset, when there are several datasets, what's the behavior fo the server?
         self.train_x,self.train_y,self.test_x,self.test_y=build_data(self.basic_config,self.control_config)
 
         self.server.train_ds=build_ds(self.train_x,self.train_y)
@@ -50,7 +51,7 @@ class Algorithm_Manager():
             drop_last=False, shuffle=False,num_workers=num_workers)
         
 
-    def run(self,):
+    def run(self):
         #print(self.algorithm)
         training_sequence=build_training_sequence(self.n_clients,self.clients_per_round,self.n_rounds,self.client_selection)
         for round_idx in range(self.clients_per_round):

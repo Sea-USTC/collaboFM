@@ -33,23 +33,32 @@ def build_training_sequence(n_clients=10,clients_per_round=3,n_rounds=2,mode="ra
         
     ### output, list=[[0,1,3],[5,7,9]]the index list of training clients in each round
     return training_sequence
-def build_client_model(basic_config,control_config):
-    if "clip" in control_config.model:
-        return model_clip(model_name=control_config.model)
+def build_client_model(client_id, basic_config, control_config):
+    if control_config.client_resource is not None:# not empty means the model may be diversied
+        cfg_dict=control_config.client_resource[client_id] #rsrc key: dataset model encoder_list encoder_para_list head_list head_para_list
+    else:
+        cfg_dict=control_config    
+    model_name=getattr(cfg_dict, "model")
+    if "clip" not in model_name:
+        encoder_list=getattr(cfg_dict, "encoder_list")
+        encoder_para_list=getattr(cfg_dict, "encoder_para_list")
+        head_list=getattr(cfg_dict, "head_list")
+        head_para_list=getattr(cfg_dict,"head_para_list")
+    if "clip" in model_name:
+        return model_clip(model_name=model_name)
+    elif "cifar" in model_name:
+        return model_cifar(model_name=model_name, encoder_list=encoder_list, encoder_para_list=encoder_para_list, \
+        head_list=head_list,head_para_list=head_para_list)
+    elif "femnist" in model_name:
+        pass
 
-    elif "cifar" in control_config.model:
-        return model_cifar(model_name=control_config.model,encoder_list=control_config.encoder_list,encoder_para_list=control_config.encoder_para_list, \
-        head_list=control_config.head_list,head_para_list=control_config.head_para_list, n_classes=10)
-    
-    #elif dataset=="cnn_cifar":
 
 
-def build_data(basic_config,control_config):
+def build_data(basic_config,control_config,data_name):
     
     # data_name: type:str "cifar10"
     # basic_config 是保存在本地默认极少修改的参数集合，例如basic_config.hidden_dim=256,说明模型中间层是256
     # control config 是训练过程中经常调整的参数集合，例如batchsize,epoch_per_round等
-    data_name=control_config.dataset
     if data_name=="cifar10":
         cifar10_train_ds = CIFAR10(root=control_config.data_dir,train=True)
         cifar10_test_ds = CIFAR10(root=control_config.data_dir,train=False)
@@ -115,11 +124,11 @@ def build_data(basic_config,control_config):
     return train_x,train_y,test_x,test_y
 
 
-def build_split(y_train,y_test,basic_config,control_config):
+def build_split(y_train,y_test,control_config,n_clients):
     if control_config.partition=="dirichlet":
-        return split_dirichlet(y_train,y_test,n_clients=control_config.n_clients,beta=control_config.beta)
+        return split_dirichlet(y_train,y_test,n_clients=n_clients,beta=control_config.beta)
     elif control_config.partition=="class":
-        return split_class(y_train,y_test,n_clients=control_config.n_clients,n_class=control_config.n_class)
+        return split_class(y_train,y_test,n_clients=n_clients,n_class=control_config.n_class)
 
 
 def build_multi_task(dataset_list=["cifar10","cifar100","mnist"],model_list=["lenet","resnet18","simple-cnn"],n_client=3,split_mode_dict={"type":"dirichlet","beta":0.5}):
