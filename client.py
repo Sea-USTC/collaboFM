@@ -40,16 +40,20 @@ class Client_Manager_base():
         self.test_idx_dict=None
 
     # build data(train_x,train_y,test_x,test_y), build split, build index of all clients
-    def build_raw_data(self):
+    def create_raw_data(self):
         self.train_x,self.train_y,self.test_x,self.test_y=build_data(self.basic_config,self.control_config)
+        
+    def create_fed_split_index(self):    
         self.train_idx_dict,self.test_idx_dict=build_split(self.train_y,self.test_y,self.basic_config,self.control_config)
         for i in range(self.n_clients):
             self.clients[i].train_idx=self.train_idx_dict[i]
             self.clients[i].test_idx=self.test_idx_dict[i]
 
+    def create_multi_task_level_index(self):
+        pass
     
     # load datasets of all clients in RAM
-    def build_all_datasets(self,train_batchsize=128,test_batchsize=128,num_workers=8):
+    def create_all_datasets(self,train_batchsize=128,test_batchsize=128,num_workers=8):
         
         for client_idx in range(self.n_clients):
             ## build dataset of all clients
@@ -67,7 +71,7 @@ class Client_Manager_base():
             
     
     # load only one recent training dataset in RAM and replace it when training next client
-    def build_one_dataset(self,client,train_batchsize=128,test_batchsize=128,num_workers=8):
+    def create_one_dataset(self,client,train_batchsize=128,test_batchsize=128,num_workers=8):
         train_idx,test_idx=client.train_idx,client.test_idx
         #print(self.train_x)
         #print(self.train_y)
@@ -83,7 +87,7 @@ class Client_Manager_base():
         return this_train_ds,this_train_dl,this_test_ds,this_test_dl
     
     # load the union dataset and dataloader of all clients in RAM
-    def build_whole_dataset(self,train_batchsize=128,test_batchsize=128,num_workers=8):
+    def create_whole_dataset(self,train_batchsize=128,test_batchsize=128,num_workers=8):
         self.train_ds_all=build_ds(self.train_x,self.train_y,data_idx=None)
         self.train_dl_all=DataLoader(dataset=self.train_ds_all, batch_size=train_batchsize,\
              drop_last=False, shuffle=False,num_workers=num_workers)
@@ -92,12 +96,12 @@ class Client_Manager_base():
              drop_last=False, shuffle=False,num_workers=num_workers)
     
     # load models of all clients in RAM
-    def build_all_models(self):
+    def create_all_models(self):
         for i in range(self.n_clients):
             self.clients[i].net=build_client_model(self.basic_config,self.control_config)
 
     # load a single model used to train now in RAM and replace it when training next client
-    def build_one_model(self):
+    def create_one_model(self):
         this_model=build_client_model(self.basic_config,self.control_config)
         return this_model
 

@@ -100,13 +100,14 @@ if __name__=="__main__":
     
     
     client_manager=Client_Manager_base(control_config,basic_config)
-    client_manager.build_raw_data()
+    client_manager.create_raw_data()
+    client_manager.create_fed_split_index()
     
     if control_config.load_all_dataset==True:
-        client_manager.build_all_datasets(train_batchsize=control_config.train_batchsize,\
+        client_manager.create_all_datasets(train_batchsize=control_config.train_batchsize,\
             test_batchsize=control_config.test_batchsize,num_workers=8)
     # if control_config.load_all_model==True:
-    client_manager.build_all_models()
+    client_manager.create_all_models()
     
     algorithm_manager=Algorithm_Manager(basic_config,control_config,client_manager)
     algorithm_manager.run()

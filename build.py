@@ -54,9 +54,9 @@ def build_data(basic_config,control_config):
         cifar10_train_ds = CIFAR10(root=control_config.data_dir,train=True)
         cifar10_test_ds = CIFAR10(root=control_config.data_dir,train=False)
         train_x, train_y = cifar10_train_ds.data, cifar10_train_ds.targets
-        train_x=train_x.reshape(-1, 3, 32, 32)
+        train_x=train_x.transpose((0, 3, 1, 2))
         test_x, test_y = cifar10_test_ds.data, cifar10_test_ds.targets
-        test_x=test_x.reshape(-1, 3, 32, 32)
+        test_x=test_x.transpose((0, 3, 1, 2))
        
     elif data_name=="cifar100":
         # need to fill    
