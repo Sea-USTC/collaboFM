@@ -2,6 +2,9 @@ from build import *
 from sklearn.metrics import accuracy_score
 from torch.utils.data.dataloader import DataLoader
 import torchvision.transforms as transforms
+import logging
+
+logger = logging.getLogger(__name__)
 
 class SERVER():
     def __init__(self):
@@ -11,19 +14,19 @@ class SERVER():
         self.train_dl=None
         self.test_dl=None
 class Algorithm_Manager():
-    def __init__(self,basic_config,control_config,client_manager):
-        self.basic_config=basic_config
-        self.control_config=control_config
-        
+    def __init__(self,control_config,client_manager):
+        self.cfg=control_config
         self.server=SERVER()
-        self.init_server_dataset()
-        self.init_server_model()
-        self.n_clients=control_config.n_clients
-        self.training_epochs=control_config.training_epochs
-        self.clients_per_round=control_config.clients_per_round
-        self.n_rounds=control_config.n_rounds
-        self.client_selection=control_config.client_selection
-        
+        if self.cfg.generic_fl_eval:
+            self.init_server_dataset()
+            self.init_server_model()
+        self.n_clients=self.cfg.federate.client_num
+        self.training_epochs=self.cfg.train.local_update_steps
+        self.clients_per_round=self.cfg.federate.sample_client_num
+        self.n_rounds=self.cfg.federate.total_round_num
+        self.client_selection=self.cfg.federate.sample_mode
+        self.global_para={}
+
         self.build_algorithm()
         #print(self.algorithm)
         
@@ -34,49 +37,44 @@ class Algorithm_Manager():
         self.test_x=None
         self.test_y=None
     def init_server_model(self):
-        self.server.net= build_client_model(self.basic_config,self.control_config)
+        self.server.net= build_server_model(self.cfg)
     def init_server_dataset(self,):
-        data_name=self.control_config.dataset
-        train_batchsize=self.control_config.train_batchsize
-        test_batchsize=self.control_config.test_batchsize
+        train_batchsize=self.cfg.train.batchsize
+        test_batchsize=self.cfg.eval.batchsize
         num_workers=8
         #build_data only build one certain dataset, when there are several datasets, what's the behavior fo the server?
-        self.train_x,self.train_y,self.test_x,self.test_y=build_data(self.basic_config,self.control_config)
+        self.train_x,self.train_y,self.test_x,self.test_y=build_data(self.cfg)
 
         self.server.train_ds=build_ds(self.train_x,self.train_y)
         self.server.train_dl=DataLoader(dataset=self.server.train_ds, batch_size=train_batchsize, \
             drop_last=True, shuffle=True,num_workers=num_workers)
         self.server.test_ds=build_ds(self.test_x,self.test_y)
         self.server.test_dl=DataLoader(dataset=self.server.test_ds, batch_size=test_batchsize, \
-            drop_last=False, shuffle=False,num_workers=num_workers)
-        
-
+            drop_last=False, shuffle=False,num_workers=num_workers)        
     def run(self):
         #print(self.algorithm)
         training_sequence=build_training_sequence(self.n_clients,self.clients_per_round,self.n_rounds,self.client_selection)
         for round_idx in range(self.clients_per_round):
             training_clients=training_sequence[round_idx]
-            self.algorithm.broadcast([self.client_manager.clients[idx] for idx in training_clients],self.server)
-            weights=[0 for i in range(len(training_clients))]
+            self.algorithm.broadcast([self.client_manager.clients[idx] for idx in training_clients])
+            weights=[len(self.client_manager.clients[i].train_ds) for i in training_clients]
 
             for client_idx in training_clients:
-                if(self.client_manager.clients[client_idx].train_dl):
+                if(self.cfg.data.load_all_dataset):
                     this_train_ds=self.client_manager.clients[client_idx].train_ds
                     this_train_dl=self.client_manager.clients[client_idx].train_dl
                     this_test_ds=self.client_manager.clients[client_idx].test_ds
                     this_test_dl=self.client_manager.clients[client_idx].test_dl
                 else:
                     this_train_ds,this_train_dl,this_test_ds,this_test_dl=\
-                        self.client_manager.build_one_dataset(self.client_manager.clients[client_idx],\
-                            train_batchsize=self.control_config.train_batchsize,\
-                            test_batchsize=self.control_config.test_batchsize,num_workers=8)
+                        self.client_manager.create_one_dataset(self.client_manager.clients[client_idx],\
+                            train_batchsize=self.cfg.train.batchsize,\
+                            test_batchsize=self.cfg.test.batchsize,num_workers=8)
                 local_data_points = len(this_train_ds)
                 net=self.client_manager.clients[client_idx].net
 
-                #train_ds=
-                #dl=
-                criterion=build_criterion(self.control_config.criterion_dicts).cuda()
-                optimizer=build_optimizer(net,self.control_config.optimizer_dicts)
+                criterion=build_criterion(self.cfg.model.criterion).cuda()
+                optimizer=build_optimizer(net,self.cfg.train.optimizer)
                 net.cuda()
                 for epoch in range(self.training_epochs):
                     
@@ -84,13 +82,58 @@ class Algorithm_Manager():
                     for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
                         self.algorithm.update_client_iter(net,client_idx,batch_x,batch_y,criterion,optimizer)
                     net.eval()
-                    loss,acc=self.evaluate(net,this_train_dl,criterion)
+                    loss,acc=self.evaluate(net,this_train_dl,criterion)#training loss
                     print(loss,acc)
 
                 net.to('cpu')
-            self.algorithm.update_server(self.client_manager.clients[training_clients],self.server,weights)
-            loss,acc=self.evaluate(self.server.net,round_idx)
+            self.algorithm.para_aggregate(self.client_manager.clients[training_clients],weights)
+            if self.cfg.federate.generic_fl_eval:
+                self.algorithm.update_server(self.server)
+                loss,acc=self.evaluate(self.server.net,round_idx)
+
+
+    def run_with_clip(self):
+        training_sequence=build_training_sequence(self.n_clients,self.clients_per_round,self.n_rounds,self.client_selection)
+        self.global_para=self.client_manager.clientd[0].net.state_dict()
+        self.algorithm.broadcast([self.client_manager.clients[idx] for idx in range(self.n_clients)])
+        import clip
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.server.net, preprocess = clip.load("ViT-B/32", device=device)
+        
+        for round_idx in range(self.clients_per_round):
+            training_clients=training_sequence[round_idx]
+            for client_idx in training_clients:
+                if(self.cfg.data.load_all_dataset):
+                    this_train_ds=self.client_manager.clients[client_idx].train_ds
+                    this_train_dl=self.client_manager.clients[client_idx].train_dl
+                    this_test_ds=self.client_manager.clients[client_idx].test_ds
+                    this_test_dl=self.client_manager.clients[client_idx].test_dl
+                else:
+                    this_train_ds,this_train_dl,this_test_ds,this_test_dl=\
+                        self.client_manager.create_one_dataset(self.client_manager.clients[client_idx],\
+                            train_batchsize=self.cfg.train.batchsize,\
+                            test_batchsize=self.cfg.test.batchsize,num_workers=8)
+                net=self.client_manager.clients[client_idx].net
+
+                criterion=build_criterion(self.cfg.model.criterion).cuda()
+                optimizer=build_optimizer(net,self.cfg.train.optimizer)
+                net.cuda()
+                for epoch in range(self.training_epochs):
+                    
+                    net.train()
+                    for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
+                        self.algorithm.update_client_iter(net,client_idx,batch_x,batch_y,criterion,optimizer)
+                    net.eval()
+                    loss,acc=self.evaluate(net,this_train_dl,criterion)#training loss
+                    logger.info(f"--------------client #{client_idx}------------------\n"
+                                "train acc:{acc} train loss:{loss}")
+                    loss,acc=self.evaluate(net,this_test_dl,criterion)
+                    logger.info(f"test acc:{acc} test loss:{loss}\n"
+                                "------------------------------------------------")
+                net.to('cpu')
             
+
+                
     def evaluate(self,net,dataloader,criterion):
         normalize = transforms.Normalize((0.4914, 0.4822, 0.4465),
                                   (0.2470, 0.2435, 0.2615))
@@ -122,20 +165,18 @@ class Algorithm_Manager():
         return avg_loss,acc
 
     def build_algorithm(self,):
-        #print(self.control_config.method)
-        if self.control_config.method=="FedAvg":
-            self.algorithm=FedAvg(self.basic_config,self.control_config)
+        #print(self.cfg.method)
+        if self.cfg.federate.method=="FedAvg":
+            self.algorithm=FedAvg(self.cfg)
         
 
 class FedAvg():
-    def __init__(self,basic_config,control_config):
-        self.basic_config=basic_config
-        self.control_config=control_config
-        self.n_clients=control_config.n_clients
-        self.clients_per_round=control_config.clients_per_round
-        self.n_rounds=control_config.n_rounds
-
-        self.epochs=self.control_config.training_epochs
+    def __init__(self,control_config):
+        self.cfg=control_config
+        self.n_clients=self.cfg.federate.client_num        
+        self.clients_per_round=self.cfg.federate.sample_client_num
+        self.n_rounds=self.cfg.federate.total_round_num
+        self.epochs=self.cfg.train.local_update_steps
 
 
     def update_client_iter(self,net,net_id,batch_x,batch_y,criterion,optimizer):
@@ -165,23 +206,75 @@ class FedAvg():
         
     
     
-    def update_server(self,clients,server,weights):
-        
+    def para_aggregate(self,clients,weights):
         for idx in range(len(clients)):
             net_para = clients[idx].net.state_dict()
             weight = weights[idx] / sum(weights)
             if idx == 0:
                 for key in net_para:
-                    global_para[key] = net_para[key] * weight
+                    self.global_para[key] = net_para[key] * weight
             else:
                 for key in net_para:
-                    global_para[key] += net_para[key] * weight
-        server.net.load_state_dict(global_para)
+                    self.global_para[key] += net_para[key] * weight
+
+    def update_server(self, server):
+        server.net.load_state_dict(self.global_para)
         
-    def broadcast(self,clients,server):
-        global_para = server.net.state_dict()
+    def broadcast(self,clients):
         for client in clients:
-            client.net.load_state_dict(global_para)
+            client.net.load_state_dict(self.global_para)
         
+class collabo():
+    def __init__(self,control_config):
+        self.cfg=control_config
+        self.n_clients=self.cfg.federate.client_num        
+        self.clients_per_round=self.cfg.federate.sample_client_num
+        self.n_rounds=self.cfg.federate.total_round_num
+        self.epochs=self.cfg.train.local_update_steps
+
+
+    def update_client_iter(self,net,net_id,batch_x,batch_y,criterion,optimizer):
+        #print(batch_x.shape)
+        normalize = transforms.Normalize((0.4914, 0.4822, 0.4465),
+                                  (0.2470, 0.2435, 0.2615))
         
+        transform_train = transforms.Compose([
+                normalize
+            ])
+        batch_x=transform_train(batch_x)
+
+        batch_x, batch_y = batch_x.cuda(), batch_y.cuda()
+
+        optimizer.zero_grad()
+        batch_x.requires_grad = False
+        batch_y.requires_grad = False
+        #target = target.long()
+
+        out = net(batch_x)
+
+        loss = criterion(out, batch_y)
+        
+        loss.backward()
+        #nn.utils.clip_grad_norm_(net.parameters(),max_norm=5,norm_type=2)
+        optimizer.step()
+        
+    
+    
+    def para_aggregate(self,clients,weights):
+        for idx in range(len(clients)):
+            net_para = clients[idx].net.state_dict()
+            weight = weights[idx] / sum(weights)
+            if idx == 0:
+                for key in net_para:
+                    self.global_para[key] = net_para[key] * weight
+            else:
+                for key in net_para:
+                    self.global_para[key] += net_para[key] * weight
+
+    def update_server(self, server):
+        server.net.load_state_dict(self.global_para)
+        
+    def broadcast(self,clients):
+        for client in clients:
+            client.net.load_state_dict(self.global_para)       
 

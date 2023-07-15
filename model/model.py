@@ -1,7 +1,7 @@
 import clip
 import torch.nn as nn
 import torch
-from resnetcifar import ResNet18_cifar10, ResNet50_cifar10,ResNet18_mnist,ResNet18_cifar10_align
+from model.resnetcifar import ResNet18_cifar10, ResNet50_cifar10,ResNet18_mnist,ResNet18_cifar10_align
 import numpy as np
 
 class orthogonal(nn.Module):
@@ -56,7 +56,7 @@ class cell(nn.Module):
         elif module_type =="identity":
             self.proxy=no_meaning
         elif module_type=="l2":
-            cls_self.proxy=l2norm
+            self.proxy=l2norm#cls_self undefined
         elif module_type=="norm":
             self.proxy=nn.BatchNorm1d(param_dict["feat_dim"])
     def forward(self,feature):

@@ -13,12 +13,11 @@ class CLIENT():
         self.test_dl=None
 
 class Client_Manager_base():
-    def __init__(self,control_config,basic_config):
+    def __init__(self,control_config):
         
         ## commonly used params
-        self.basic_config=basic_config
-        self.control_config=control_config
-        self.n_clients=self.control_config.n_clients
+        self.cfg=control_config
+        self.n_clients=self.cfg.federate.client_num
         
         ## init clients
         self.clients={}
@@ -41,14 +40,14 @@ class Client_Manager_base():
 
     # build data(train_x,train_y,test_x,test_y), build split, build index of all clients 
     def create_fed_split_index(self):    
-        self.train_x,self.train_y,self.test_x,self.test_y=build_data(self.basic_config,self.control_config,self.control_config.dataset)
-        self.train_idx_dict,self.test_idx_dict=build_split(self.train_y,self.test_y,self.control_config,self.control_config.n_clients)
+        self.train_x,self.train_y,self.test_x,self.test_y=build_data(self.cfg,self.cfg.dataset)
+        self.train_idx_dict,self.test_idx_dict=build_split(self.train_y,self.test_y,self.cfg,self.n_clients)
         for i in range(self.n_clients):
             self.clients[i].train_idx=self.train_idx_dict[i]
             self.clients[i].test_idx=self.test_idx_dict[i]
 
     def create_multi_task_index_datasets(self,train_batchsize=128,test_batchsize=128,num_workers=8):
-        rsrc=self.control_config.client_resource
+        rsrc=self.cfg.federate.client_resource
         dataset2idx={}
         for idx in range(self.n_clients):
             if rsrc[idx]["dataset"] in dataset2idx:
@@ -57,8 +56,8 @@ class Client_Manager_base():
                 dataset2idx[rsrc[idx]["dataset"]]=[idx]
         for dataset_name,idx_list in dataset2idx:
             self.train_x, self.train_y, self.test_x, self.test_y = \
-                build_data(self.basic_config,self.control_config,dataset_name)
-            train_idx_dict,test_idx_dict = build_split(self.train_y,self.test_y,self.control_config,len(idx_list))
+                build_data(self.cfg,dataset_name)
+            train_idx_dict,test_idx_dict = build_split(self.train_y,self.test_y,self.cfg,len(idx_list))
             for i in range(len(idx_list)):
                 self.clients[idx_list[i]].train_idx=train_idx_dict[i]#feels like these assignments are meaningless
                 self.clients[idx_list[i]].test_idx=test_idx_dict[i]
@@ -119,11 +118,11 @@ class Client_Manager_base():
     # load models of all clients in RAM
     def create_all_models(self):
         for i in range(self.n_clients):
-            self.clients[i].net=build_client_model(i, self.basic_config, self.control_config)
+            self.clients[i].net=build_client_model(i, self.cfg)
 
     # load a single model used to train now in RAM and replace it when training next client
     def create_one_model(self):
-        this_model=build_client_model(self.basic_config,self.control_config)
+        this_model=build_client_model(0,self.cfg)
         return this_model
 
 
