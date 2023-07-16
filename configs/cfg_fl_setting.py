@@ -1,9 +1,8 @@
-import logging
-
-from configs.config import CN
+from collaboFM.configs.config import CN
 from collaboFM.register import register_config
 import torch
 
+import logging
 logger = logging.getLogger(__name__)
 
 
@@ -23,7 +22,7 @@ def extend_fl_setting_cfg(cfg):
     cfg.federate.restore_from = ''
     cfg.federate.save_to = ''
     
-    cfg.federate.client_resource={}   
+    cfg.federate.client_resource=CN(new_allowed=True)   
 
     cfg.fm=CN()
     cfg.fm.use=False
@@ -34,7 +33,8 @@ def extend_fl_setting_cfg(cfg):
 
 def assert_fl_setting_cfg(cfg):
     # =============  client num related  ==============
-    assert (cfg.federate.use_hetero_model and not cfg.federate.client_resource), "Client_resource need to be specified"
+    if cfg.federate.use_hetero_model:
+        assert (not cfg.federate.client_resource), "Client_resource need to be specified"
 
 
 

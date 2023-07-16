@@ -1,4 +1,4 @@
-from build import build_client_model,build_ds,build_data,build_split
+from collaboFM.build import build_client_model,build_ds,build_data,build_split
 import numpy as np
 from torch.utils.data.dataloader import DataLoader
 class CLIENT():
@@ -40,7 +40,7 @@ class Client_Manager_base():
 
     # build data(train_x,train_y,test_x,test_y), build split, build index of all clients 
     def create_fed_split_index(self):    
-        self.train_x,self.train_y,self.test_x,self.test_y=build_data(self.cfg,self.cfg.dataset)
+        self.train_x,self.train_y,self.test_x,self.test_y=build_data(self.cfg,self.cfg.data.dataset)
         self.train_idx_dict,self.test_idx_dict=build_split(self.train_y,self.test_y,self.cfg,self.n_clients)
         for i in range(self.n_clients):
             self.clients[i].train_idx=self.train_idx_dict[i]

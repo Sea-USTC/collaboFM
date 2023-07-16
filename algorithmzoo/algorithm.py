@@ -1,10 +1,12 @@
-from build import *
+from collaboFM.build import *
 from sklearn.metrics import accuracy_score
 from torch.utils.data.dataloader import DataLoader
 import torchvision.transforms as transforms
 import logging
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 
 class SERVER():
     def __init__(self):
@@ -17,7 +19,7 @@ class Algorithm_Manager():
     def __init__(self,control_config,client_manager):
         self.cfg=control_config
         self.server=SERVER()
-        if self.cfg.generic_fl_eval:
+        if self.cfg.federate.generic_fl_eval:
             self.init_server_dataset()
             self.init_server_model()
         self.n_clients=self.cfg.federate.client_num
@@ -25,7 +27,6 @@ class Algorithm_Manager():
         self.clients_per_round=self.cfg.federate.sample_client_num
         self.n_rounds=self.cfg.federate.total_round_num
         self.client_selection=self.cfg.federate.sample_mode
-        self.global_para={}
 
         self.build_algorithm()
         #print(self.algorithm)
@@ -52,9 +53,9 @@ class Algorithm_Manager():
         self.server.test_dl=DataLoader(dataset=self.server.test_ds, batch_size=test_batchsize, \
             drop_last=False, shuffle=False,num_workers=num_workers)        
     def run(self):
-        #print(self.algorithm)
+        self.algorithm.global_para=self.client_manager.clients[0].net.state_dict()
         training_sequence=build_training_sequence(self.n_clients,self.clients_per_round,self.n_rounds,self.client_selection)
-        for round_idx in range(self.clients_per_round):
+        for round_idx in range(self.n_rounds):
             training_clients=training_sequence[round_idx]
             self.algorithm.broadcast([self.client_manager.clients[idx] for idx in training_clients])
             weights=[len(self.client_manager.clients[i].train_ds) for i in training_clients]
@@ -73,7 +74,7 @@ class Algorithm_Manager():
                 local_data_points = len(this_train_ds)
                 net=self.client_manager.clients[client_idx].net
 
-                criterion=build_criterion(self.cfg.model.criterion).cuda()
+                criterion=build_criterion(self.cfg.criterion).cuda()
                 optimizer=build_optimizer(net,self.cfg.train.optimizer)
                 net.cuda()
                 for epoch in range(self.training_epochs):
@@ -83,10 +84,13 @@ class Algorithm_Manager():
                         self.algorithm.update_client_iter(net,client_idx,batch_x,batch_y,criterion,optimizer)
                     net.eval()
                     loss,acc=self.evaluate(net,this_train_dl,criterion)#training loss
-                    print(loss,acc)
+                    logger.info(f"--------------client #{client_idx}------------------")
+                    logger.info(f"train acc:{acc} train loss:{loss}")
+                    loss,acc=self.evaluate(net,this_test_dl,criterion)
+                    logger.info(f"test acc:{acc} test loss:{loss}")
 
                 net.to('cpu')
-            self.algorithm.para_aggregate(self.client_manager.clients[training_clients],weights)
+            self.algorithm.para_aggregate([self.client_manager.clients[idx] for idx in training_clients],weights)
             if self.cfg.federate.generic_fl_eval:
                 self.algorithm.update_server(self.server)
                 loss,acc=self.evaluate(self.server.net,round_idx)
@@ -94,7 +98,7 @@ class Algorithm_Manager():
 
     def run_with_clip(self):
         training_sequence=build_training_sequence(self.n_clients,self.clients_per_round,self.n_rounds,self.client_selection)
-        self.global_para=self.client_manager.clientd[0].net.state_dict()
+        self.algorithm.global_para=self.client_manager.clients[0].net.state_dict()
         self.algorithm.broadcast([self.client_manager.clients[idx] for idx in range(self.n_clients)])
         import clip
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -126,10 +130,10 @@ class Algorithm_Manager():
                     net.eval()
                     loss,acc=self.evaluate(net,this_train_dl,criterion)#training loss
                     logger.info(f"--------------client #{client_idx}------------------\n"
-                                "train acc:{acc} train loss:{loss}")
+                                f"train acc:{acc} train loss:{loss}")
                     loss,acc=self.evaluate(net,this_test_dl,criterion)
                     logger.info(f"test acc:{acc} test loss:{loss}\n"
-                                "------------------------------------------------")
+                                f"------------------------------------------------")
                 net.to('cpu')
             
 
@@ -177,6 +181,7 @@ class FedAvg():
         self.clients_per_round=self.cfg.federate.sample_client_num
         self.n_rounds=self.cfg.federate.total_round_num
         self.epochs=self.cfg.train.local_update_steps
+        self.global_para={}
 
 
     def update_client_iter(self,net,net_id,batch_x,batch_y,criterion,optimizer):

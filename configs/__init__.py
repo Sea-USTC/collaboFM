@@ -13,7 +13,7 @@ all_sub_configs = copy.copy(__all__)
 if "config" in all_sub_configs:
     all_sub_configs.remove('config')
 
-from configs.config import CN, init_global_cfg
+from collaboFM.configs.config import CN, init_global_cfg
 __all__ = __all__ + \
           [
               'CN',

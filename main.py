@@ -8,15 +8,20 @@ if DEV_MODE:
     sys.path.append(file_dir)
 
 import yaml
-from client import Client_Manager_base
-from algorithm import Algorithm_Manager
+from collaboFM.client import Client_Manager_base
+from collaboFM.algorithmzoo.algorithm import Algorithm_Manager
 import argparse
 import numpy as np
 import torch
 import random
 from collaboFM.configs.config import global_cfg
-from auxiliaries.logging import update_logger
-from utils import setup_seed
+from collaboFM.auxiliaries.logging import update_logger
+from collaboFM.utils import setup_seed
+
+import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--cfg',
@@ -102,16 +107,16 @@ def get_args():
     return args
 
 if __name__=="__main__":
+    logger.info("FL start!!")
     init_cfg = global_cfg.clone()
     control_config=get_args()
-    #basic_config in control_config.cfg_file
     if(control_config.cfg_file):
         init_cfg.merge_from_file(control_config.cfg_file)
-    #cmdline args in control_config.opts
     update_logger(init_cfg, clear_before_add=True)
     setup_seed(init_cfg.seed)
-    
-    client_manager=Client_Manager_base(control_config)
+    init_cfg.freeze()
+    logger.info("start training!!!")
+    client_manager=Client_Manager_base(init_cfg)
 
     if init_cfg.federate.use_hetero_model:
         client_manager.create_multi_task_index_datasets()
@@ -124,8 +129,8 @@ if __name__=="__main__":
     # if control_config.load_all_model==True:
     client_manager.create_all_models()
     
-    init_cfg.freeze()
-    algorithm_manager=Algorithm_Manager(control_config,client_manager)
+
+    algorithm_manager=Algorithm_Manager(init_cfg,client_manager)
     algorithm_manager.run()
 
     

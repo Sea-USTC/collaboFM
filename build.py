@@ -1,9 +1,9 @@
 #import clip
-from model import *
-from dataset import dataset_base
+from collaboFM.model import *
+from collaboFM.dataset import dataset_base
 from torchvision.datasets import CIFAR10,CIFAR100
-from model.model import *
-from partition import *
+from collaboFM.model.model import *
+from collaboFM.partition import *
 import torch.optim as optim
 import torch.nn as nn
 # def build_weights(train_y):
@@ -20,6 +20,10 @@ def build_criterion(criterion_dicts):
 
 def build_optimizer(net,optim_dicts):
     if optim_dicts["type"]=="SGD":
+        # for num,para in enumerate(paras):
+        #     print('number:',num)
+        #     print(para)
+        #     print('_____________________________')
         return optim.SGD(filter(lambda p: p.requires_grad, net.parameters()), lr=optim_dicts["lr"],\
              momentum=optim_dicts["momentum"], weight_decay=optim_dicts["weight_decay"])
     
@@ -44,7 +48,7 @@ def build_client_model(client_id, cfg):
         cfg_dict=cfg.federate.client_resource[client_id] #rsrc key: dataset model encoder_list encoder_para_list head_list head_para_list
     else:
         cfg_dict=cfg.model    
-    model_name=getattr(cfg_dict, "backbone")
+    model_name=getattr(cfg_dict, "backbone").lower()
     if "clip" not in model_name:
         encoder_list=getattr(cfg_dict, "encoder_list")
         encoder_para_list=getattr(cfg_dict, "encoder_para_list")
@@ -66,8 +70,8 @@ def build_data(cfg,data_name):
     # basic_config 是保存在本地默认极少修改的参数集合，例如basic_config.hidden_dim=256,说明模型中间层是256
     # control config 是训练过程中经常调整的参数集合，例如batchsize,epoch_per_round等
     if data_name=="cifar10":
-        cifar10_train_ds = CIFAR10(root=cfg.data_dir,train=True)
-        cifar10_test_ds = CIFAR10(root=cfg.data_dir,train=False)
+        cifar10_train_ds = CIFAR10(root=cfg.data.root,train=True)
+        cifar10_test_ds = CIFAR10(root=cfg.data.root,train=False)
         train_x, train_y = cifar10_train_ds.data, cifar10_train_ds.targets
         train_x=train_x.transpose((0, 3, 1, 2))
         test_x, test_y = cifar10_test_ds.data, cifar10_test_ds.targets
@@ -131,9 +135,9 @@ def build_data(cfg,data_name):
 
 
 def build_split(y_train,y_test,cfg,n_clients):
-    if cfg.partition=="dirichlet":
-        return split_dirichlet(y_train,y_test,n_clients=n_clients,beta=cfg.beta)
-    elif cfg.partition=="class":
+    if cfg.data.splitter=="dirichlet":
+        return split_dirichlet(y_train,y_test,n_clients=n_clients,beta=cfg.data.splitter_args[0]["beta"])
+    elif cfg.data.splitter=="class":
         return split_class(y_train,y_test,n_clients=n_clients,n_class=cfg.n_class)
 
 

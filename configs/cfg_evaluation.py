@@ -1,6 +1,7 @@
-from configs.config import CN
+from collaboFM.configs.config import CN
 from collaboFM.register import register_config
-
+import logging
+logger = logging.getLogger(__name__)
 
 def extend_evaluation_cfg(cfg):
 

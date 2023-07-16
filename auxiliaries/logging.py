@@ -12,6 +12,7 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 
+
 class CustomFormatter(logging.Formatter):
     """Logging colored formatter, adapted from
     https://stackoverflow.com/a/56944256/3638629"""
@@ -81,7 +82,7 @@ def update_logger(cfg, clear_before_add=False):
     if cfg.outdir == "":
         cfg.outdir = os.path.join(os.getcwd(), "exp")
     if cfg.expname == "":
-        cfg.expname = f"{cfg.model.type}_on" \
+        cfg.expname = f"{cfg.model.backbone}_on" \
                       f"_{cfg.data.dataset}"
     if cfg.expname_tag:
         cfg.expname = f"{cfg.expname}_{cfg.expname_tag}"
@@ -124,5 +125,6 @@ def update_logger(cfg, clear_before_add=False):
                      f" {socket.gethostbyname(socket.gethostname())}")
     root_logger.info(f"the current dir is {os.getcwd()}")
     root_logger.info(f"the output dir is {cfg.outdir}")
+
 
 

@@ -4,12 +4,11 @@ import os
 
 from pathlib import Path
 
-from configs.yacs_config import CfgNode, _merge_a_into_b, \
+from collaboFM.configs.yacs_config import CfgNode, _merge_a_into_b, \
     Argument
-import register
+from collaboFM import register
 
 logger = logging.getLogger(__name__)
-
 
 def set_help_info(cn_node, help_info_dict, prefix=""):
     for k, v in cn_node.items():
@@ -232,11 +231,9 @@ class CN(CfgNode):
 
 
 # to ensure the sub-configs registered before set up the global config
-from configs import all_sub_configs
-
+from collaboFM.configs import all_sub_configs 
 for sub_config in all_sub_configs:
-    __import__("federatedscope.core.configs." + sub_config)
-
+    __import__("collaboFM.configs." + sub_config)
 
 
 # Global config object
@@ -276,11 +273,10 @@ def init_global_cfg(cfg):
     cfg.cfg_file = ''
 
     # The dir used to save log, exp_config, models, etc,.
-    cfg.outdir = 'exp'
+    cfg.outdir = '/mnt/workspace/lisiyi/exp_out/'
     cfg.expname = ''  # detailed exp name to distinguish different sub-exp
     cfg.expname_tag = ''  # detailed exp tag to distinguish different
     # sub-exp with the same expname
-
     for func in register.config_dict.values():
         func(cfg)
 

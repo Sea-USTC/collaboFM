@@ -1,8 +1,7 @@
-import logging
-
-from configs.config import CN
+from collaboFM.configs.config import CN
 from collaboFM.register import register_config
 
+import logging
 logger = logging.getLogger(__name__)
 
 
@@ -12,8 +11,8 @@ def extend_data_cfg(cfg):
     # ---------------------------------------------------------------------- #
     cfg.data = CN()
 
-    cfg.data.root = 'data'
-    cfg.data.dataset = 'toy'
+    cfg.data.root = '/mnt/workspace/colla_group/data/'
+    cfg.data.dataset = 'cifar10'
     cfg.data.load_all_dataset = True
     cfg.data.save_data = False  # whether to save the generated toy data
     cfg.data.args = []  # args for external dataset, eg. [{'download': True}]

@@ -1,7 +1,7 @@
-import clip
+from collaboFM import clip
 import torch.nn as nn
 import torch
-from model.resnetcifar import ResNet18_cifar10, ResNet50_cifar10,ResNet18_mnist,ResNet18_cifar10_align
+from collaboFM.model.resnetcifar import ResNet18_cifar10, ResNet50_cifar10,ResNet18_mnist,ResNet18_cifar10_align
 import numpy as np
 
 class orthogonal(nn.Module):

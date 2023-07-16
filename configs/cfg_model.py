@@ -1,13 +1,15 @@
-from configs.config import CN
+from collaboFM.configs.config import CN
 from collaboFM.register import register_config
 
+import logging
+logger = logging.getLogger(__name__)
 
 def extend_model_cfg(cfg):
     # ---------------------------------------------------------------------- #
     # Model related options
     # ---------------------------------------------------------------------- #
     cfg.model = CN()
-    cfg.model.backbone = ""
+    cfg.model.backbone = "ResNetCifar10"
     cfg.model.hidden = 256
     cfg.model.dropout = 0.5
     cfg.model.in_channels = 0  # If 0, model will be built by data.shape
@@ -15,9 +17,9 @@ def extend_model_cfg(cfg):
     cfg.model.input_shape = ()  # A tuple, e.g., (in_channel, h, w)
 
     cfg.model.encoder_list=[]
-    cfg.model.encoder_para_list=[]
+    cfg.model.encoder_para_list=CN(new_allowed=True)
     cfg.model.head_list=[]
-    cfg.model.head_para_list=[]
+    cfg.model.head_para_list=CN(new_allowed=True)
     # ---------------------------------------------------------------------- #
     # Criterion related options
     # ---------------------------------------------------------------------- #
@@ -39,6 +41,5 @@ def extend_model_cfg(cfg):
 
 def assert_model_cfg(cfg):
     pass
-
 
 register_config("model", extend_model_cfg)
