@@ -22,23 +22,59 @@ device: 0
 early_stop:
   delta: 0.0
   improve_indicator_mode: best
-  patience: 5
+  patience: 0
 eval:
   batchsize: 128
   freq: 1
 expname: ""
-expname_tag: ''
+expname_tag: 'sdmm'
 federate:
   client_num: 5
-  client_resource: {"0":{"dataset":"cifar10","backbone":"ResNetCifar10","encoder_list":[],"encoder_para_list": [],"head_list": [],"head_para_list": []}}
   generic_fl_eval: false
-  method: FedAvg
+  method: local
   restore_from: ''
   sample_client_num: 4
   sample_mode: random
   save_to: ''
   total_round_num: 50
-  use_hetero_model: false
+  use_hetero_model: true
+client_resource:
+  dataset: 
+    "0": cifar10
+    "1": cifar10
+    "2": cifar10
+    "3": cifar10
+    "4": cifar10
+  backbone: 
+    "0": ResNet18Cifar10
+    "1": ResNet18Cifar10
+    "2": ResNet18Cifar10
+    "3": ResNet50Cifar10
+    "4": ResNet50Cifar10
+  encoder_list:
+    "0": ["identity"]
+    "1": ["identity"]
+    "2": ["identity"]
+    "3": ["identity"]
+    "4": ["identity"]
+  encoder_para_list: 
+    "0": []
+    "1": []
+    "2": []
+    "3": []
+    "4": []
+  head_list:
+    "0": ["linear"]
+    "1": ["linear"]
+    "2": ["linear"]
+    "3": ["linear"]
+    "4": ["linear"]
+  head_para_list: 
+    "0": ["in_dim",512,"out_dim",10]
+    "1": ["in_dim",512,"out_dim",10]
+    "2": ["in_dim",512,"out_dim",10]
+    "3": ["in_dim",2048,"out_dim",10]
+    "4": ["in_dim",2048,"out_dim",10]
 fm:
   use: false
 grad:
@@ -48,9 +84,9 @@ model:
   backbone: ResNet18Cifar10
   dropout: 0.5
   encoder_list: ["identity"]
-  encoder_para_list: {}
+  encoder_para_list: []
   head_list: ["linear"]
-  head_para_list: {"in_dim": 512, "out_dim": 10}
+  head_para_list: ["in_dim", 512, "out_dim", 10]
   hidden: 256
   in_channels: 0
   input_shape: []
@@ -73,12 +109,6 @@ train:
   scheduler:
     type: ''
     warmup_ratio: 0.0
-trainer:
-  sam:
-    adaptive: false
-    eta: 0.0
-    rho: 1.0
-  type: general
 use_gpu: True
 verbose: 1
 
