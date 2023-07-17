@@ -1,3 +1,4 @@
+import torchvision.transforms as transforms
 
 class FedAvg():
     def __init__(self,control_config):

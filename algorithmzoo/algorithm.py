@@ -5,6 +5,7 @@ import torchvision.transforms as transforms
 import logging
 from collaboFM.algorithmzoo.fedavg import FedAvg
 from collaboFM.algorithmzoo.collabo import collabo
+from collaboFM.algorithmzoo.local import local_baseline
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -29,12 +30,7 @@ class Algorithm_Manager():
         self.clients_per_round=self.cfg.federate.sample_client_num
         self.n_rounds=self.cfg.federate.total_round_num
         self.client_selection=self.cfg.federate.sample_mode
-
-        self.build_algorithm()
-        #print(self.algorithm)
-        
         self.client_manager=client_manager
-        #self.server_manager=server_manager
         self.train_x=None
         self.train_y=None
         self.test_x=None
@@ -54,7 +50,19 @@ class Algorithm_Manager():
         self.server.test_ds=build_ds(self.test_x,self.test_y)
         self.server.test_dl=DataLoader(dataset=self.server.test_ds, batch_size=test_batchsize, \
             drop_last=False, shuffle=False,num_workers=num_workers)        
-    def run(self):
+    
+    def simulation(self):
+        method = self.cfg.federate.method.lower()
+        if method=="fedavg":
+            self.run_fl()
+        elif method=="local":
+            self.run_local()
+        elif method=="collabo":
+            self.run_with_clip()
+    
+    
+    def run_fl(self):
+        self.algorithm=FedAvg(self.cfg)
         self.algorithm.global_para=self.client_manager.clients[0].net.state_dict()
         training_sequence=build_training_sequence(self.n_clients,self.clients_per_round,self.n_rounds,self.client_selection)
         for round_idx in range(self.n_rounds):
@@ -97,22 +105,47 @@ class Algorithm_Manager():
                 self.algorithm.update_server(self.server)
                 loss,acc=self.evaluate(self.server.net,round_idx)
 
+    def run_local(self):
+        self.algorithm=local_baseline(self.cfg)
+        for round_idx in range(self.n_rounds):
+            for client_idx in range(self.n_clients):
+                if(self.cfg.data.load_all_dataset):
+                    this_train_dl=self.client_manager.clients[client_idx].train_dl
+                    this_test_dl=self.client_manager.clients[client_idx].test_dl
+                else:
+                    this_train_ds,this_train_dl,this_test_ds,this_test_dl=\
+                        self.client_manager.create_one_dataset(self.client_manager.clients[client_idx],\
+                            train_batchsize=self.cfg.train.batchsize,\
+                            test_batchsize=self.cfg.test.batchsize,num_workers=8)
+                net=self.client_manager.clients[client_idx].net
+
+                criterion=build_criterion(self.cfg.criterion).cuda()
+                optimizer=build_optimizer(net,self.cfg.train.optimizer)
+                net.cuda()
+                for epoch in range(self.training_epochs):
+                    
+                    net.train()
+                    for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
+                        self.algorithm.update_client_iter(net,client_idx,batch_x,batch_y,criterion,optimizer)
+                    net.eval()
+                    loss,acc=self.evaluate(net,this_train_dl,criterion)#training loss
+                    logger.info(f"--------------client #{client_idx}------------------")
+                    logger.info(f"train acc:{acc} train loss:{loss}")
+                    loss,acc=self.evaluate(net,this_test_dl,criterion)
+                    logger.info(f"test acc:{acc} test loss:{loss}")
+                net.to('cpu')
+
 
     def run_with_clip(self):
-        training_sequence=build_training_sequence(self.n_clients,self.clients_per_round,self.n_rounds,self.client_selection)
-        self.algorithm.global_para=self.client_manager.clients[0].net.state_dict()
-        self.algorithm.broadcast([self.client_manager.clients[idx] for idx in range(self.n_clients)])
-        import clip
+        self.algorithm=collabo(self.cfg)
+        import collaboFM.clip as clip
         device = "cuda" if torch.cuda.is_available() else "cpu"
         self.server.net, preprocess = clip.load("ViT-B/32", device=device)
         
         for round_idx in range(self.clients_per_round):
-            training_clients=training_sequence[round_idx]
-            for client_idx in training_clients:
+            for client_idx in range(self.n_clients):
                 if(self.cfg.data.load_all_dataset):
-                    this_train_ds=self.client_manager.clients[client_idx].train_ds
                     this_train_dl=self.client_manager.clients[client_idx].train_dl
-                    this_test_ds=self.client_manager.clients[client_idx].test_ds
                     this_test_dl=self.client_manager.clients[client_idx].test_dl
                 else:
                     this_train_ds,this_train_dl,this_test_ds,this_test_dl=\
@@ -170,10 +203,5 @@ class Algorithm_Manager():
 
         return avg_loss,acc
 
-    def build_algorithm(self,):
-        #print(self.cfg.method)
-        if self.cfg.federate.method=="FedAvg":
-            self.algorithm=FedAvg(self.cfg)
-        
      
 

@@ -131,6 +131,6 @@ if __name__=="__main__":
     
 
     algorithm_manager=Algorithm_Manager(init_cfg,client_manager)
-    algorithm_manager.run()
+    algorithm_manager.simulation()
 
     
