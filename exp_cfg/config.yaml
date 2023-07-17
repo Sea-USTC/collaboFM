@@ -1,0 +1,84 @@
+cfg_file: ''
+criterion:
+  type: cross_entropy
+data:
+  args: []
+  dataset: cifar10
+  file_path: ''
+  load_all_dataset: true
+  root: /mnt/workspace/colla_group/data/
+  save_data: false
+  splitter: 'dirichlet'
+  splitter_args: [{'beta':0.1}]
+  target_transform: []
+  test_pre_transform: []
+  test_target_transform: []
+  test_transform: []
+  transform: []
+  val_pre_transform: []
+  val_target_transform: []
+  val_transform: []
+device: 0
+early_stop:
+  delta: 0.0
+  improve_indicator_mode: best
+  patience: 5
+eval:
+  batchsize: 128
+  freq: 1
+expname: ""
+expname_tag: ''
+federate:
+  client_num: 5
+  client_resource: {"0":{"dataset":"cifar10","backbone":"ResNetCifar10","encoder_list":[],"encoder_para_list": [],"head_list": [],"head_para_list": []}}
+  generic_fl_eval: false
+  method: FedAvg
+  restore_from: ''
+  sample_client_num: 4
+  sample_mode: random
+  save_to: ''
+  total_round_num: 50
+  use_hetero_model: false
+fm:
+  use: false
+grad:
+  grad_accum_count: 1
+  grad_clip: -1.0
+model:
+  backbone: ResNet18Cifar10
+  dropout: 0.5
+  encoder_list: ["identity"]
+  encoder_para_list: {}
+  head_list: ["linear"]
+  head_para_list: {"in_dim": 512, "out_dim": 10}
+  hidden: 256
+  in_channels: 0
+  input_shape: []
+  out_channels: 1
+outdir: /mnt/workspace/lisiyi/exp_out/
+print_decimal_digits: 6
+regularizer:
+  mu: 0.0
+  type: ''
+seed: 0
+train:
+  batch_or_epoch: batch
+  batchsize: 128
+  local_update_steps: 1
+  optimizer:
+    lr: 0.1
+    momentum: 0.9
+    type: SGD
+    weight_decay: 0.0
+  scheduler:
+    type: ''
+    warmup_ratio: 0.0
+trainer:
+  sam:
+    adaptive: false
+    eta: 0.0
+    rho: 1.0
+  type: general
+use_gpu: True
+verbose: 1
+
