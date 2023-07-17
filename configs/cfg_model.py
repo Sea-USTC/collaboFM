@@ -17,9 +17,9 @@ def extend_model_cfg(cfg):
     cfg.model.input_shape = ()  # A tuple, e.g., (in_channel, h, w)
 
     cfg.model.encoder_list=[]
-    cfg.model.encoder_para_list=CN(new_allowed=True)
+    cfg.model.encoder_para_list=[]
     cfg.model.head_list=[]
-    cfg.model.head_para_list=CN(new_allowed=True)
+    cfg.model.head_para_list=[]
     # ---------------------------------------------------------------------- #
     # Criterion related options
     # ---------------------------------------------------------------------- #

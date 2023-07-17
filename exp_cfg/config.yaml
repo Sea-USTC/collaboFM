@@ -24,10 +24,10 @@ early_stop:
   improve_indicator_mode: best
   patience: 0
 eval:
-  batchsize: 128
+  batchsize: 256
   freq: 1
 expname: ""
-expname_tag: 'sdmm'
+expname_tag: 'bugfix'
 federate:
   client_num: 5
   generic_fl_eval: false
@@ -46,21 +46,21 @@ client_resource:
     "3": cifar10
     "4": cifar10
   backbone: 
-    "0": ResNet18Cifar10
-    "1": ResNet18Cifar10
-    "2": ResNet18Cifar10
-    "3": ResNet50Cifar10
-    "4": ResNet50Cifar10
+    "0": ResNet50Cifar10
+    "1": ResNet50Cifar10
+    "2": ResNet50Cifar10
+    "3": ResNet18Cifar10
+    "4": ResNet18Cifar10
   encoder_list:
-    "0": ["identity"]
-    "1": ["identity"]
-    "2": ["identity"]
+    "0": ["linear"]
+    "1": ["linear"]
+    "2": ["linear"]
     "3": ["identity"]
     "4": ["identity"]
   encoder_para_list: 
-    "0": []
-    "1": []
-    "2": []
+    "0": ["in_dim",2048,"out_dim",512]
+    "1": ["in_dim",2048,"out_dim",512]
+    "2": ["in_dim",2048,"out_dim",512]
     "3": []
     "4": []
   head_list:
@@ -73,8 +73,8 @@ client_resource:
     "0": ["in_dim",512,"out_dim",10]
     "1": ["in_dim",512,"out_dim",10]
     "2": ["in_dim",512,"out_dim",10]
-    "3": ["in_dim",2048,"out_dim",10]
-    "4": ["in_dim",2048,"out_dim",10]
+    "3": ["in_dim",512,"out_dim",10]
+    "4": ["in_dim",512,"out_dim",10]
 fm:
   use: false
 grad:
@@ -99,10 +99,10 @@ regularizer:
 seed: 0
 train:
   batch_or_epoch: batch
-  batchsize: 128
+  batchsize: 256
   local_update_steps: 1
   optimizer:
-    lr: 0.1
+    lr: 0.01
     momentum: 0.9
     type: SGD
     weight_decay: 0.0

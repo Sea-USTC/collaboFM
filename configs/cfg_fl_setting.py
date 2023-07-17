@@ -22,7 +22,13 @@ def extend_fl_setting_cfg(cfg):
     cfg.federate.restore_from = ''
     cfg.federate.save_to = ''
     
-    cfg.federate.client_resource=CN(new_allowed=True)   
+    cfg.client_resource=CN()
+    cfg.client_resource.dataset=CN(new_allowed=True)
+    cfg.client_resource.backbone=CN(new_allowed=True)
+    cfg.client_resource.encoder_list=CN(new_allowed=True)
+    cfg.client_resource.encoder_para_list=CN(new_allowed=True)
+    cfg.client_resource.head_list=CN(new_allowed=True)
+    cfg.client_resource.head_para_list=CN(new_allowed=True)
 
     cfg.fm=CN()
     cfg.fm.use=False
@@ -33,8 +39,7 @@ def extend_fl_setting_cfg(cfg):
 
 def assert_fl_setting_cfg(cfg):
     # =============  client num related  ==============
-    if cfg.federate.use_hetero_model:
-        assert (not cfg.federate.client_resource), "Client_resource need to be specified"
+    pass
 
 
 

@@ -47,14 +47,14 @@ class Client_Manager_base():
             self.clients[i].test_idx=self.test_idx_dict[i]
 
     def create_multi_task_index_datasets(self,train_batchsize=128,test_batchsize=128,num_workers=8):
-        rsrc=self.cfg.federate.client_resource
+        rsrc=self.cfg.client_resource
         dataset2idx={}
         for idx in range(self.n_clients):
-            if rsrc[idx]["dataset"] in dataset2idx:
-                dataset2idx[rsrc[idx]["dataset"]].append(idx)
+            if rsrc["dataset"][str(idx)] in dataset2idx:
+                dataset2idx[rsrc["dataset"][str(idx)]].append(idx)
             else:
-                dataset2idx[rsrc[idx]["dataset"]]=[idx]
-        for dataset_name,idx_list in dataset2idx:
+                dataset2idx[rsrc["dataset"][str(idx)]]=[idx]
+        for dataset_name,idx_list in dataset2idx.items():
             self.train_x, self.train_y, self.test_x, self.test_y = \
                 build_data(self.cfg,dataset_name)
             train_idx_dict,test_idx_dict = build_split(self.train_y,self.test_y,self.cfg,len(idx_list))

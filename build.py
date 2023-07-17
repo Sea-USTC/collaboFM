@@ -45,18 +45,23 @@ def build_server_model(cfg):
 
 def build_client_model(client_id, cfg):
     if cfg.federate.use_hetero_model:# not empty means the model may be diversied
-        cfg_dict=cfg.federate.client_resource[client_id] #rsrc key: dataset model encoder_list encoder_para_list head_list head_para_list
+        cfg_dict=cfg.client_resource #rsrc key: dataset model encoder_list encoder_para_list head_list head_para_list
+        model_name=getattr(cfg_dict, "backbone")[str(client_id)].lower()
     else:
         cfg_dict=cfg.model    
-    model_name=getattr(cfg_dict, "backbone").lower()
-    if "clip" not in model_name:
-        encoder_list=getattr(cfg_dict, "encoder_list")
-        encoder_para_list=getattr(cfg_dict, "encoder_para_list")
-        head_list=getattr(cfg_dict, "head_list")
-        head_para_list=getattr(cfg_dict,"head_para_list")
+        model_name=getattr(cfg_dict, "backbone").lower()
     if "clip" in model_name:
         return model_clip(model_name=model_name)
-    elif "cifar" in model_name:
+    encoder_list=getattr(cfg_dict, "encoder_list")
+    encoder_para_list=getattr(cfg_dict, "encoder_para_list")
+    head_list=getattr(cfg_dict, "head_list")
+    head_para_list=getattr(cfg_dict,"head_para_list")
+    if cfg.federate.use_hetero_model:
+        encoder_list=encoder_list[str(client_id)]
+        encoder_para_list=encoder_para_list[str(client_id)]
+        head_list=head_list[str(client_id)]
+        head_para_list=head_para_list[str(client_id)]
+    if "cifar" in model_name:
         return model_cifar(model_name=model_name, encoder_list=encoder_list, encoder_para_list=encoder_para_list, \
         head_list=head_list,head_para_list=head_para_list)
     elif "femnist" in model_name:

@@ -82,7 +82,7 @@ def update_logger(cfg, clear_before_add=False):
     if cfg.outdir == "":
         cfg.outdir = os.path.join(os.getcwd(), "exp")
     if cfg.expname == "":
-        cfg.expname = f"{cfg.model.backbone}_on" \
+        cfg.expname = f"{cfg.federate.method}_on" \
                       f"_{cfg.data.dataset}"
     if cfg.expname_tag:
         cfg.expname = f"{cfg.expname}_{cfg.expname_tag}"

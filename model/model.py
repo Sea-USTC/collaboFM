@@ -45,20 +45,20 @@ class l2CLS(nn.Module):
         return x
 
 class cell(nn.Module):    
-    def __init__(self,module_type="linear",param_dict=None):
+    def __init__(self,module_type="linear",param_list=None):
         super(cell,self).__init__()
         if module_type=="linear":
-            self.proxy=nn.Linear(param_dict["in_dim"],param_dict["out_dim"])
+            self.proxy=nn.Linear(param_list[1],param_list[3])
         elif module_type=="orthogonal":
-            self.proxy=orthogonal(feat_dim=param_dict["feat_dim"],class_num=param_dict["class_num"])
+            self.proxy=orthogonal(feat_dim=param_list[1],class_num=param_list[3])
         elif module_type =="etf":
-            self.proxy=nn.BatchNorm1d(param_dict["feat_dim"])
+            self.proxy=nn.BatchNorm1d(param_list[1])
         elif module_type =="identity":
             self.proxy=no_meaning
         elif module_type=="l2":
             self.proxy=l2norm#cls_self undefined
         elif module_type=="norm":
-            self.proxy=nn.BatchNorm1d(param_dict["feat_dim"])
+            self.proxy=nn.BatchNorm1d(param_list[1])
     def forward(self,feature):
         return self.proxy(feature)
 
@@ -89,7 +89,7 @@ class SimpleCNN_header(nn.Module):
 
 class model_cifar(nn.Module):
     def __init__(self,model_name, encoder_list=["identity"],encoder_para_list=None, \
-        head_list=["linear"],head_para_list={"in_dim":256,"out_dim":10}):
+        head_list=["linear"],head_para_list=["in_dim",512,"out_dim",10]):
         super(model_cifar, self).__init__()
         if "resnet18" in model_name:
             basemodel = ResNet18_cifar10()

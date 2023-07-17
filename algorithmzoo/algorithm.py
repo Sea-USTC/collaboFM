@@ -10,6 +10,8 @@ from collaboFM.algorithmzoo.local import local_baseline
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+gpus = [0, 1, 2, 3]
+torch.cuda.set_device('cuda:{}'.format(gpus[0]))
 
 class SERVER():
     def __init__(self):
@@ -108,6 +110,7 @@ class Algorithm_Manager():
     def run_local(self):
         self.algorithm=local_baseline(self.cfg)
         for round_idx in range(self.n_rounds):
+            logger.info(f"-------------Round #{round_idx} start---------------")
             for client_idx in range(self.n_clients):
                 if(self.cfg.data.load_all_dataset):
                     this_train_dl=self.client_manager.clients[client_idx].train_dl
@@ -121,9 +124,8 @@ class Algorithm_Manager():
 
                 criterion=build_criterion(self.cfg.criterion).cuda()
                 optimizer=build_optimizer(net,self.cfg.train.optimizer)
-                net.cuda()
-                for epoch in range(self.training_epochs):
-                    
+                net=nn.DataParallel(net.to(f"cuda:{gpus[0]}"), device_ids=gpus, output_device=gpus[0])
+                for epoch in range(self.training_epochs):                    
                     net.train()
                     for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
                         self.algorithm.update_client_iter(net,client_idx,batch_x,batch_y,criterion,optimizer)
@@ -133,7 +135,6 @@ class Algorithm_Manager():
                     logger.info(f"train acc:{acc} train loss:{loss}")
                     loss,acc=self.evaluate(net,this_test_dl,criterion)
                     logger.info(f"test acc:{acc} test loss:{loss}")
-                net.to('cpu')
 
 
     def run_with_clip(self):
