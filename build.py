@@ -1,9 +1,9 @@
 #import clip
 from collaboFM.model import *
-from collaboFM.dataset import dataset_base
+from collaboFM.data.dataset import dataset_base
 from torchvision.datasets import CIFAR10,CIFAR100
 from collaboFM.model.model import *
-from collaboFM.partition import *
+from collaboFM.auxiliaries.partition import *
 import torch.optim as optim
 import torch.nn as nn
 # def build_weights(train_y):
@@ -77,10 +77,8 @@ def build_data(cfg,data_name):
     if data_name=="cifar10":
         cifar10_train_ds = CIFAR10(root=cfg.data.root,train=True)
         cifar10_test_ds = CIFAR10(root=cfg.data.root,train=False)
-        train_x, train_y = cifar10_train_ds.data, cifar10_train_ds.targets
-        train_x=train_x.transpose((0, 3, 1, 2))
+        train_x, train_y = cifar10_train_ds.data, cifar10_train_ds.targets        
         test_x, test_y = cifar10_test_ds.data, cifar10_test_ds.targets
-        test_x=test_x.transpose((0, 3, 1, 2))
        
     elif data_name=="cifar100":
         # need to fill    

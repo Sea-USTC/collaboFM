@@ -45,18 +45,8 @@ def extend_training_cfg(cfg):
     # ---------------------------------------------------------------------- #
     # Early stopping related options
     # ---------------------------------------------------------------------- #
-    cfg.early_stop = CN()
-
-    # patience (int): How long to wait after last time the monitored metric
-    # improved.
-    # Note that the actual_checking_round = patience * cfg.eval.freq
-    # To disable the early stop, set the early_stop.patience to 0
-    cfg.early_stop.patience = 5
-    # delta (float): Minimum change in the monitored metric to indicate an
-    # improvement.
-    cfg.early_stop.delta = 0.0
-    # Early stop when no improve to last `patience` round, in ['mean', 'best']
-    cfg.early_stop.improve_indicator_mode = 'best'
+    cfg.tqn_train=CN()
+    cfg.tqn_train.key_train_round=20
 
     # --------------- register corresponding check function ----------
     cfg.register_cfg_check_fun(assert_training_cfg)

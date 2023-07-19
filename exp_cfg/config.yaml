@@ -19,19 +19,15 @@ data:
   val_target_transform: []
   val_transform: []
 device: 0
-early_stop:
-  delta: 0.0
-  improve_indicator_mode: best
-  patience: 0
 eval:
-  batchsize: 256
+  batchsize: 128
   freq: 1
 expname: ""
-expname_tag: 'bugfix'
+expname_tag: 'v1'
 federate:
   client_num: 5
   generic_fl_eval: false
-  method: local
+  method: collabo
   restore_from: ''
   sample_client_num: 4
   sample_mode: random
@@ -55,14 +51,14 @@ client_resource:
     "0": ["linear"]
     "1": ["linear"]
     "2": ["linear"]
-    "3": ["identity"]
-    "4": ["identity"]
+    "3": ["linear"]
+    "4": ["linear"]
   encoder_para_list: 
-    "0": ["in_dim",2048,"out_dim",512]
-    "1": ["in_dim",2048,"out_dim",512]
-    "2": ["in_dim",2048,"out_dim",512]
-    "3": []
-    "4": []
+    "0": ["in_dim",2048,"out_dim",768]
+    "1": ["in_dim",2048,"out_dim",768]
+    "2": ["in_dim",2048,"out_dim",768]
+    "3": ["in_dim",512,"out_dim",768]
+    "4": ["in_dim",512,"out_dim",768]
   head_list:
     "0": ["linear"]
     "1": ["linear"]
@@ -70,11 +66,11 @@ client_resource:
     "3": ["linear"]
     "4": ["linear"]
   head_para_list: 
-    "0": ["in_dim",512,"out_dim",10]
-    "1": ["in_dim",512,"out_dim",10]
-    "2": ["in_dim",512,"out_dim",10]
-    "3": ["in_dim",512,"out_dim",10]
-    "4": ["in_dim",512,"out_dim",10]
+    "0": ["in_dim",768,"out_dim",10]
+    "1": ["in_dim",768,"out_dim",10]
+    "2": ["in_dim",768,"out_dim",10]
+    "3": ["in_dim",768,"out_dim",10]
+    "4": ["in_dim",768,"out_dim",10]
 fm:
   use: false
 grad:
@@ -97,9 +93,11 @@ regularizer:
   mu: 0.0
   type: ''
 seed: 0
+tqn_train:
+  key_train_round: 20
 train:
   batch_or_epoch: batch
-  batchsize: 256
+  batchsize: 128
   local_update_steps: 1
   optimizer:
     lr: 0.01

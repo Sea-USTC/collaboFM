@@ -1,4 +1,7 @@
 import torchvision.transforms as transforms
+import torch
+from sklearn.metrics import accuracy_score
+import numpy as np
 
 class FedAvg():
     def __init__(self,control_config):
@@ -54,4 +57,33 @@ class FedAvg():
     def broadcast(self,clients):
         for client in clients:
             client.net.load_state_dict(self.global_para)
+
+    def evaluate(self,net,dataloader,criterion):
+        normalize = transforms.Normalize((0.4914, 0.4822, 0.4465),
+                                  (0.2470, 0.2435, 0.2615))
+        transform_test = transforms.Compose([
+                transforms.ToTensor(),
+                normalize
+            ])
+        #net=client.net
         
+        criterion.cuda()
+        true_labels_list, pred_labels_list = np.array([]), np.array([])
+        loss_collector = []
+
+        with torch.no_grad():
+            for batch_idx, (x, target) in enumerate(dataloader):
+                x=transform_test(x)
+                x, target = x.cuda(), target.to(dtype=torch.int64).cuda()
+                out = net(x)
+                loss = criterion(out, target)
+                _, pred_label = torch.max(out.data, 1)
+                loss_collector.append(loss.item())
+                #total += x.data.size()[0]
+                #correct += (pred_label == target.data).sum().item()
+                pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
+                true_labels_list = np.append(true_labels_list, target.data.cpu().numpy())
+            avg_loss = sum(loss_collector) / len(loss_collector)
+            acc=accuracy_score(true_labels_list,pred_labels_list)
+
+        return avg_loss,acc    

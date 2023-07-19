@@ -1,11 +1,10 @@
 from collaboFM.build import *
-from sklearn.metrics import accuracy_score
 from torch.utils.data.dataloader import DataLoader
-import torchvision.transforms as transforms
 import logging
 from collaboFM.algorithmzoo.fedavg import FedAvg
 from collaboFM.algorithmzoo.collabo import collabo
 from collaboFM.algorithmzoo.local import local_baseline
+from collaboFM.data.label_name import get_label_name
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -109,100 +108,92 @@ class Algorithm_Manager():
 
     def run_local(self):
         self.algorithm=local_baseline(self.cfg)
-        for round_idx in range(self.n_rounds):
-            logger.info(f"-------------Round #{round_idx} start---------------")
-            for client_idx in range(self.n_clients):
-                if(self.cfg.data.load_all_dataset):
-                    this_train_dl=self.client_manager.clients[client_idx].train_dl
-                    this_test_dl=self.client_manager.clients[client_idx].test_dl
-                else:
-                    this_train_ds,this_train_dl,this_test_ds,this_test_dl=\
-                        self.client_manager.create_one_dataset(self.client_manager.clients[client_idx],\
-                            train_batchsize=self.cfg.train.batchsize,\
-                            test_batchsize=self.cfg.test.batchsize,num_workers=8)
-                net=self.client_manager.clients[client_idx].net
+        for dataset_name, client_list in self.client_manager.dataset2idx.items():
+            for round_idx in range(self.n_rounds):
+                logger.info(f"-------------Round #{round_idx} start---------------")
+                for client_idx in client_list:
+                    if(self.cfg.data.load_all_dataset):
+                        this_train_dl=self.client_manager.clients[client_idx].train_dl
+                        this_test_dl=self.client_manager.clients[client_idx].test_dl
+                    else:
+                        this_train_ds,this_train_dl,this_test_ds,this_test_dl=\
+                            self.client_manager.create_one_dataset(self.client_manager.clients[client_idx],\
+                                train_batchsize=self.cfg.train.batchsize,\
+                                test_batchsize=self.cfg.test.batchsize,num_workers=8)
+                    net=self.client_manager.clients[client_idx].net
 
-                criterion=build_criterion(self.cfg.criterion).cuda()
-                optimizer=build_optimizer(net,self.cfg.train.optimizer)
-                net=nn.DataParallel(net.to(f"cuda:{gpus[0]}"), device_ids=gpus, output_device=gpus[0])
-                for epoch in range(self.training_epochs):                    
-                    net.train()
-                    for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
-                        self.algorithm.update_client_iter(net,client_idx,batch_x,batch_y,criterion,optimizer)
-                    net.eval()
-                    loss,acc=self.evaluate(net,this_train_dl,criterion)#training loss
-                    logger.info(f"--------------client #{client_idx}------------------")
-                    logger.info(f"train acc:{acc} train loss:{loss}")
-                    loss,acc=self.evaluate(net,this_test_dl,criterion)
-                    logger.info(f"test acc:{acc} test loss:{loss}")
+                    criterion=build_criterion(self.cfg.criterion).cuda()
+                    optimizer=build_optimizer(net,self.cfg.train.optimizer)
+                    net=nn.DataParallel(net.to(f"cuda:{gpus[0]}"), device_ids=gpus, output_device=gpus[0])
+                    for epoch in range(self.training_epochs):                    
+                        net.train()
+                        for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
+                            self.algorithm.update_client_iter(net,client_idx,batch_x,batch_y,criterion,optimizer)
+                        net.eval()
+                        loss,acc=self.evaluate(net,this_train_dl,criterion)#training loss
+                        logger.info(f"--------------client #{client_idx}------------------")
+                        logger.info(f"train acc:{acc} train loss:{loss}")
+                        loss,acc=self.evaluate(net,this_test_dl,criterion)
+                        logger.info(f"test acc:{acc} test loss:{loss}")
 
 
     def run_with_clip(self):
         self.algorithm=collabo(self.cfg)
         import collaboFM.clip as clip
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.server.net, preprocess = clip.load("ViT-B/32", device=device)
-        
-        for round_idx in range(self.clients_per_round):
-            for client_idx in range(self.n_clients):
-                if(self.cfg.data.load_all_dataset):
-                    this_train_dl=self.client_manager.clients[client_idx].train_dl
-                    this_test_dl=self.client_manager.clients[client_idx].test_dl
-                else:
-                    this_train_ds,this_train_dl,this_test_ds,this_test_dl=\
-                        self.client_manager.create_one_dataset(self.client_manager.clients[client_idx],\
-                            train_batchsize=self.cfg.train.batchsize,\
-                            test_batchsize=self.cfg.test.batchsize,num_workers=8)
-                net=self.client_manager.clients[client_idx].net
-
-                criterion=build_criterion(self.cfg.model.criterion).cuda()
-                optimizer=build_optimizer(net,self.cfg.train.optimizer)
-                net.cuda()
-                for epoch in range(self.training_epochs):
-                    
-                    net.train()
-                    for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
-                        self.algorithm.update_client_iter(net,client_idx,batch_x,batch_y,criterion,optimizer)
-                    net.eval()
-                    loss,acc=self.evaluate(net,this_train_dl,criterion)#training loss
+        self.server.net, preprocess = clip.load("/mnt/workspace/colla_group/ViT-B-32.pt", device=device)
+        for dataset_name, client_list in self.client_manager.dataset2idx.items():
+            label_name = get_label_name(self.cfg, dataset_name)
+            label2token=clip.tokenize(label_name).cuda()
+            label2repre=self.server.net.encode_text(label2token).to('cpu')
+            for round_idx in range(self.cfg.tqn_train.key_train_round):
+                logger.info(f"##########Round #{round_idx} ################")
+                for client_idx in client_list:
                     logger.info(f"--------------client #{client_idx}------------------\n"
-                                f"train acc:{acc} train loss:{loss}")
-                    loss,acc=self.evaluate(net,this_test_dl,criterion)
-                    logger.info(f"test acc:{acc} test loss:{loss}\n"
-                                f"------------------------------------------------")
-                net.to('cpu')
-            
+                                f"              train start!")
+                    if(self.cfg.data.load_all_dataset):
+                        this_train_dl=self.client_manager.clients[client_idx].train_dl
+                        this_test_dl=self.client_manager.clients[client_idx].test_dl
+                    else:
+                        this_train_ds,this_train_dl,this_test_ds,this_test_dl=\
+                            self.client_manager.create_one_dataset(self.client_manager.clients[client_idx],\
+                                train_batchsize=self.cfg.train.batchsize,\
+                                test_batchsize=self.cfg.test.batchsize,num_workers=8)
+                    net=self.client_manager.clients[client_idx].net
 
-                
-    def evaluate(self,net,dataloader,criterion):
-        normalize = transforms.Normalize((0.4914, 0.4822, 0.4465),
-                                  (0.2470, 0.2435, 0.2615))
-        
-        transform_test = transforms.Compose([
-                normalize
-            ])
-        #net=client.net
-        
-        criterion.cuda()
-        true_labels_list, pred_labels_list = np.array([]), np.array([])
-        loss_collector = []
-
-        with torch.no_grad():
-            for batch_idx, (x, target) in enumerate(dataloader):
-                x=transform_test(x)
-                x, target = x.cuda(), target.to(dtype=torch.int64).cuda()
-                out = net(x)
-                loss = criterion(out, target)
-                _, pred_label = torch.max(out.data, 1)
-                loss_collector.append(loss.item())
-                #total += x.data.size()[0]
-                #correct += (pred_label == target.data).sum().item()
-                pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
-                true_labels_list = np.append(true_labels_list, target.data.cpu().numpy())
-            avg_loss = sum(loss_collector) / len(loss_collector)
-            acc=accuracy_score(true_labels_list,pred_labels_list)
-
-        return avg_loss,acc
+                    criterion=build_criterion(self.cfg.model.criterion).cuda()
+                    optimizer=build_optimizer(net,self.cfg.train.optimizer)
+                    net.cuda()
+                    for epoch in range(self.training_epochs):
+                        net.train()
+                        for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
+                            self.algorithm.update_client_iter(net,client_idx,batch_x,batch_y,criterion,optimizer,label2repre)
+            for round_idx in range(self.n_rounds):
+                logger.info(f"#######TQN Round #{round_idx} ################")
+                for client_idx in client_list:
+                    logger.info(f"--------------client #{client_idx}------------------\n"
+                                f"              train start!")
+                    if(self.cfg.data.load_all_dataset):
+                        this_train_dl=self.client_manager.clients[client_idx].train_dl
+                        this_test_dl=self.client_manager.clients[client_idx].test_dl
+                    else:
+                        this_train_ds,this_train_dl,this_test_ds,this_test_dl=\
+                            self.client_manager.create_one_dataset(self.client_manager.clients[client_idx],\
+                                train_batchsize=self.cfg.train.batchsize,\
+                                test_batchsize=self.cfg.test.batchsize,num_workers=8)
+                    net=self.client_manager.clients[client_idx].net
+                    net.cuda()  
+                    for epoch in range(self.training_epochs):                    
+                        net.train()
+                        for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
+                            self.algorithm.train_tqn_model(net,client_idx,batch_x,batch_y,label2repre)
+                        net.eval()
+                        loss,acc=self.algorithm.evaluate(net,this_train_dl,criterion)#training loss
+                        logger.info(f"--------------client #{client_idx}------------------")
+                        logger.info(f"train acc:{acc} train loss:{loss}")
+                        loss,acc=self.algorithm.evaluate(net,this_test_dl,criterion)
+                        logger.info(f"test acc:{acc} test loss:{loss}")
+    
 
      
 

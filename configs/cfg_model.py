@@ -9,7 +9,7 @@ def extend_model_cfg(cfg):
     # Model related options
     # ---------------------------------------------------------------------- #
     cfg.model = CN()
-    cfg.model.backbone = "ResNetCifar10"
+    cfg.model.backbone = "ResNet18Cifar10"
     cfg.model.hidden = 256
     cfg.model.dropout = 0.5
     cfg.model.in_channels = 0  # If 0, model will be built by data.shape

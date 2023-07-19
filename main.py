@@ -16,7 +16,7 @@ import torch
 import random
 from collaboFM.configs.config import global_cfg
 from collaboFM.auxiliaries.logging import update_logger
-from collaboFM.utils import setup_seed
+from collaboFM.auxiliaries.utils import setup_seed
 
 import logging
 logger = logging.getLogger(__name__)
