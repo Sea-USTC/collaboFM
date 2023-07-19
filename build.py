@@ -75,8 +75,8 @@ def build_data(cfg,data_name):
     # basic_config 是保存在本地默认极少修改的参数集合，例如basic_config.hidden_dim=256,说明模型中间层是256
     # control config 是训练过程中经常调整的参数集合，例如batchsize,epoch_per_round等
     if data_name=="cifar10":
-        cifar10_train_ds = CIFAR10(root=cfg.data.root,train=True)
-        cifar10_test_ds = CIFAR10(root=cfg.data.root,train=False)
+        cifar10_train_ds = CIFAR10(root=cfg.data.root,train=True)#
+        cifar10_test_ds = CIFAR10(root=cfg.data.root,train=False)#
         train_x, train_y = cifar10_train_ds.data, cifar10_train_ds.targets        
         test_x, test_y = cifar10_test_ds.data, cifar10_test_ds.targets
        

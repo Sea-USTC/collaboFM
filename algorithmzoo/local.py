@@ -43,7 +43,6 @@ class local_baseline():
         normalize = transforms.Normalize((0.4914, 0.4822, 0.4465),
                                   (0.2470, 0.2435, 0.2615))
         transform_test = transforms.Compose([
-                transforms.ToTensor(),
                 normalize
             ])
         #net=client.net

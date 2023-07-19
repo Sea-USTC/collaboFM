@@ -161,13 +161,19 @@ class Algorithm_Manager():
                                 test_batchsize=self.cfg.test.batchsize,num_workers=8)
                     net=self.client_manager.clients[client_idx].net
 
-                    criterion=build_criterion(self.cfg.model.criterion).cuda()
+                    criterion=build_criterion(self.cfg.criterion).cuda()
                     optimizer=build_optimizer(net,self.cfg.train.optimizer)
                     net.cuda()
                     for epoch in range(self.training_epochs):
                         net.train()
                         for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
                             self.algorithm.update_client_iter(net,client_idx,batch_x,batch_y,criterion,optimizer,label2repre)
+            model_list=[]
+            dump_path="/mnt/workspace/lisiyi/result/backbone.pt"
+            for client_idx in client_list:
+                self.client_manager.clients[client_idx].net.eval()
+                model_list[client_idx]=self.client_manager.clients[client_idx].net.state_dict()
+            torch.save(model_list,dump_path)
             for round_idx in range(self.n_rounds):
                 logger.info(f"#######TQN Round #{round_idx} ################")
                 for client_idx in client_list:
@@ -184,14 +190,14 @@ class Algorithm_Manager():
                     net=self.client_manager.clients[client_idx].net
                     net.cuda()  
                     for epoch in range(self.training_epochs):                    
-                        net.train()
+                        self.algorithm.tqn.train()
                         for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
                             self.algorithm.train_tqn_model(net,client_idx,batch_x,batch_y,label2repre)
-                        net.eval()
-                        loss,acc=self.algorithm.evaluate(net,this_train_dl,criterion)#training loss
+                        self.algorithm.tqn.eval()
+                        loss,acc=self.algorithm.evaluate(net,this_train_dl,label2repre)#training loss
                         logger.info(f"--------------client #{client_idx}------------------")
                         logger.info(f"train acc:{acc} train loss:{loss}")
-                        loss,acc=self.algorithm.evaluate(net,this_test_dl,criterion)
+                        loss,acc=self.algorithm.evaluate(net,this_test_dl,label2repre)
                         logger.info(f"test acc:{acc} test loss:{loss}")
     
 

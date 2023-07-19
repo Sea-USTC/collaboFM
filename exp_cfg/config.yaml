@@ -23,7 +23,7 @@ eval:
   batchsize: 128
   freq: 1
 expname: ""
-expname_tag: 'v1'
+expname_tag: 'v3'
 federate:
   client_num: 5
   generic_fl_eval: false
@@ -51,14 +51,14 @@ client_resource:
     "0": ["linear"]
     "1": ["linear"]
     "2": ["linear"]
-    "3": ["linear"]
-    "4": ["linear"]
+    "3": ["identity"]
+    "4": ["identity"]
   encoder_para_list: 
-    "0": ["in_dim",2048,"out_dim",768]
-    "1": ["in_dim",2048,"out_dim",768]
-    "2": ["in_dim",2048,"out_dim",768]
-    "3": ["in_dim",512,"out_dim",768]
-    "4": ["in_dim",512,"out_dim",768]
+    "0": ["in_dim",2048,"out_dim",512]
+    "1": ["in_dim",2048,"out_dim",512]
+    "2": ["in_dim",2048,"out_dim",512]
+    "3": []
+    "4": []
   head_list:
     "0": ["linear"]
     "1": ["linear"]
@@ -66,11 +66,11 @@ client_resource:
     "3": ["linear"]
     "4": ["linear"]
   head_para_list: 
-    "0": ["in_dim",768,"out_dim",10]
-    "1": ["in_dim",768,"out_dim",10]
-    "2": ["in_dim",768,"out_dim",10]
-    "3": ["in_dim",768,"out_dim",10]
-    "4": ["in_dim",768,"out_dim",10]
+    "0": ["in_dim",512,"out_dim",10]
+    "1": ["in_dim",512,"out_dim",10]
+    "2": ["in_dim",512,"out_dim",10]
+    "3": ["in_dim",512,"out_dim",10]
+    "4": ["in_dim",512,"out_dim",10]
 fm:
   use: false
 grad:
@@ -94,7 +94,7 @@ regularizer:
   type: ''
 seed: 0
 tqn_train:
-  key_train_round: 20
+  key_train_round: 40
 train:
   batch_or_epoch: batch
   batchsize: 128
