@@ -23,17 +23,17 @@ eval:
   batchsize: 128
   freq: 1
 expname: ""
-expname_tag: '10client'
+expname_tag: 'loss_classify'
 federate:
   client_num: 10
   generic_fl_eval: false
-  method: collabo
+  method: local
   restore_from: ''
-  sample_client_num: 4
+  sample_client_num: 10
   sample_mode: random
   save_to: ''
   total_round_num: 100
-  use_hetero_model: true
+  use_hetero_model: True
 client_resource:
   dataset: 
     "0": cifar10
@@ -117,7 +117,7 @@ model:
   in_channels: 0
   input_shape: []
   out_channels: 1
-outdir: /mnt/workspace/lisiyi/exp_out/cliptune
+outdir: /mnt/workspace/lisiyi/exp_out/local/
 print_decimal_digits: 6
 regularizer:
   mu: 0.0
@@ -125,13 +125,6 @@ regularizer:
 seed: 0
 tqn_train:
   key_train_round: 160
-  tqn_optimizer:
-    lr: 0.001
-    momentum: 0.9
-    type: Adam
-    weight_decay: 0.0
-  tau: 200
-  mu: 0.05
 train:
   batch_or_epoch: batch
   batchsize: 128

@@ -18,7 +18,7 @@ class collabo():
         self.clients_per_round=self.cfg.federate.sample_client_num
         self.n_rounds=self.cfg.federate.total_round_num
         self.epochs=self.cfg.train.local_update_steps
-        self.tqn=TQN_Model(embed_dim=512, class_num=2)
+        self.tqn=[TQN_Model(embed_dim=512, class_num=10) for i in range(self.n_clients)]
 
 
     def update_client_iter(self,net,net_id,batch_x,batch_y,criterion,optimizer,label2repre):
@@ -34,20 +34,59 @@ class collabo():
         batch_x = batch_x.cuda()
         batch_x = transform_train(batch_x)
         N=batch_y.shape[0]
-        batch_y_repre=torch.vstack([label2repre[[batch_y[i]]] for i in range(N)])
         batch_x = batch_x.detach().cuda()
-        batch_y = batch_y_repre.detach().cuda()
-
+        batch_y = batch_y.cuda()
+        label2repre = label2repre.float().detach().cuda()
         optimizer.zero_grad()
         #target = target.long()
+        #logger.debug(batch_x)
         out = net.forward_with_feature(batch_x)[1]
-        loss = criterion(out, batch_y)
-        
+        #logger.debug(out)
+        #logger.debug(batch_y)
+        loss,angle = self.similarity(out, label2repre,batch_y,2)
+        #logger.debug(loss.item())
         loss.backward()
         #nn.utils.clip_grad_norm_(net.parameters(),max_norm=5,norm_type=2)
         optimizer.step()
-    
-    def train_tqn_model(self,net,net_id,batch_x,batch_y,label2repre):
+        return N, loss, angle
+
+    def similarity(self, out, label2repre,target,flag="cluster", tau=20):
+        loss=torch.tensor([0.0]).cuda()
+        loss_kad=torch.tensor([0.0]).cuda()
+        angle=[]
+        
+        for tgt in torch.unique(target): 
+            tgt_idx = target[target==tgt]
+                #label2repre: [class_num, embed_dim]
+                #out: [batchsize, embed_dim]   
+                #target: [batchsize]
+            if flag=="KAD":
+                sample_set=label2repre.t()/tau         
+                loss-=torch.sum(torch.nn.functional.log_softmax(torch.mm(out[tgt_idx,:],sample_set),dim=1)[:,tgt])  
+                non_tgt_idx = target[target!=tgt]
+                for i in tgt_idx:
+                    z_set = torch.vstack([out[i,:], out[non_tgt_idx,:]]).t()/tau
+                    loss-=torch.nn.functional.log_softmax(torch.mm(label2repre[tgt].reshape(1,-1),z_set)/tau,dim=1)[0,0]
+                loss_kad=loss
+            
+            if flag in ["KAD+","cluster","cluster-"]:   
+                z_set = torch.vstack([out[tgt_idx,:],label2repre[tgt]])
+                N = len(z_set)
+                conv=torch.mm(z_set, z_set.t())/tau
+                conv=torch.nn.functional.log_softmax(conv,dim=1)
+                if flag=="cluster":
+                    #logger.info(conv)
+                    loss-=torch.sum(conv)/N
+                elif flag=="cluster-":
+                    loss-=torch.sum(conv[:,N-1])/N
+                else :
+                    loss=loss_kad-torch.sum(conv)/N
+            for i in tgt_idx:
+                angle.append((torch.dot(out[i,:],label2repre[tgt,:])/torch.linalg.vector_norm(out[i,:])/torch.linalg.vector_norm(label2repre[tgt,:])).item())
+        return loss.cuda(),angle
+
+
+    def train_tqn_model(self,net,net_id,batch_x,batch_y,label2repre,round):
         #print(batch_x.shape)
         normalize = transforms.Normalize((0.4914, 0.4822, 0.4465),
                                   (0.2470, 0.2435, 0.2615))
@@ -64,22 +103,20 @@ class collabo():
 
         with torch.no_grad():
             image_repre = net.forward_with_feature(batch_x)[1]
-        self.tqn.cuda()
+        self.tqn[net_id].cuda()
         from torch.optim import Adam
 
-        optimizer = Adam(filter(lambda p: p.requires_grad, self.tqn.parameters()),lr=0.001)
+        optimizer = Adam(filter(lambda p: p.requires_grad, self.tqn[net_id].parameters()),lr=0.000001/(round+1))
         criterion = CrossEntropyLoss().cuda()
         optimizer.zero_grad()  
         image_repre=image_repre.unsqueeze(1).detach().cuda()
         label2repre=label2repre.float().detach().cuda()
-        out = self.tqn(image_repre, label2repre)##magic_num 1
-        batch_y=one_hot(batch_y, num_classes=10)
-        batch_y=one_hot(batch_y, num_classes=2).float().detach().cuda()
-        loss = criterion(out, batch_y)
+        out = self.tqn[net_id](image_repre, label2repre)##magic_num 1
+        loss = criterion(out,batch_y)
         loss.backward()
         optimizer.step()
             
-    def evaluate(self,net,dataloader, label2repre):
+    def evaluate(self,net,net_id,dataloader, label2repre):
         normalize = transforms.Normalize((0.4914, 0.4822, 0.4465),
                                   (0.2470, 0.2435, 0.2615))
         transform_test = transforms.Compose([
@@ -98,17 +135,14 @@ class collabo():
                 image_repre = net.forward_with_feature(x)[1]
                 image_repre=image_repre.unsqueeze(1).detach().cuda()
                 label2repre=label2repre.float().detach().cuda()
-                self.tqn.cuda()
-                out = self.tqn(image_repre, label2repre)
-                y_true=target
-                target=one_hot(target, num_classes=10)
-                target=one_hot(target, num_classes=2).float().detach().cuda()
-                loss = criterion(out, target)
-                _, pred_label = torch.max(out.data[:,:,1], 1)
+                target=target.cuda()
+                self.tqn[net_id].cuda()
+                out = self.tqn[net_id](image_repre, label2repre)                
+                loss = criterion(out,target)
+                _, pred_label = torch.max(out.data, 1)
                 loss_collector.append(loss.item())
                 pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
-                true_labels_list = np.append(true_labels_list, y_true.data.cpu().numpy())
-                #logger.info(len(pred_labels_list)==len(true_labels_list))
+                true_labels_list = np.append(true_labels_list, target.data.cpu().numpy())
             avg_loss = sum(loss_collector) / len(loss_collector)
             acc=accuracy_score(true_labels_list,pred_labels_list)
 

@@ -6,6 +6,11 @@ import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
 
+import logging
+
+logger=logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 class TransformerDecoder(nn.Module):
     def __init__(self, decoder_layer, num_layers, norm=None, return_intermediate=False):
         super().__init__()
@@ -170,7 +175,7 @@ class TQN_Model(nn.Module):
         self.dropout_feas = nn.Dropout(0.1)
 
         self.mlp_head = nn.Sequential( # nn.LayerNorm(768),
-            nn.Linear(embed_dim, class_num)
+            nn.Linear(embed_dim*class_num, class_num)
         )
         self.apply(self._init_weights)
     
@@ -191,14 +196,23 @@ class TQN_Model(nn.Module):
     def forward(self, image_features, text_features):
         #image_features (batch_size,patch_num,dim)
         #text_features (query_num,dim)
+        #logger.debug(image_features)
         batch_size = image_features.shape[0]
         image_features = image_features.transpose(0,1)
         text_features = text_features.unsqueeze(1).repeat(1, batch_size, 1)
+        #logger.debug(text_features)
         image_features = self.decoder_norm(image_features)
+        #logger.debug(image_features)
         text_features = self.decoder_norm(text_features)
+        #logger.debug(text_features)
+        #logger.debug(image_features)
+        #logger.debug(text_features)
         features = self.decoder(text_features, image_features, 
                 memory_key_padding_mask=None, pos=None, query_pos=None) 
+        #logger.debug(features)
         features = self.dropout_feas(features).transpose(0,1)  #b,embed_dim
+        #logger.debug(features)
+        features=torch.flatten(features,start_dim=1)
         out = self.mlp_head(features)  #(batch_size, query_num)
         return out
 

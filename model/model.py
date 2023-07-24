@@ -4,6 +4,11 @@ import torch
 from collaboFM.model.resnetcifar import ResNet18_cifar10, ResNet50_cifar10,ResNet18_mnist,ResNet18_cifar10_align
 import numpy as np
 
+import logging
+
+logger=logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 class orthogonal(nn.Module):
     def __init__(self,feat_dim=128,class_num=10):
         super(orthogonal,self).__init__()
@@ -121,7 +126,9 @@ class model_cifar(nn.Module):
         y = self.head(x)
         return y
     def forward_with_feature(self, x):
+        #logger.debug(x)
         h = self.backbone(x)
+        #logger.debug(h.shape)
         h=h.squeeze()
         x=h
         x=self.encoder(x)

@@ -18,14 +18,16 @@ def build_criterion(criterion_dicts):
         return nn.CrossEntropyLoss()
     
 
-def build_optimizer(net,optim_dicts):
+def build_optimizer(net,optim_dicts,round):
     if optim_dicts["type"]=="SGD":
         # for num,para in enumerate(paras):
         #     print('number:',num)
         #     print(para)
         #     print('_____________________________')
-        return optim.SGD(filter(lambda p: p.requires_grad, net.parameters()), lr=optim_dicts["lr"],\
+        return optim.SGD(filter(lambda p: p.requires_grad, net.parameters()), lr=optim_dicts["lr"]/(round+1),\
              momentum=optim_dicts["momentum"], weight_decay=optim_dicts["weight_decay"])
+    elif optim_dicts["type"]=="Adam":
+        return optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr=optim_dicts["lr"]/(round+1))
     
 def build_training_sequence(n_clients=10,clients_per_round=3,n_rounds=2,mode="random"):
     ### input:

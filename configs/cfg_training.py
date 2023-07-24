@@ -47,6 +47,9 @@ def extend_training_cfg(cfg):
     # ---------------------------------------------------------------------- #
     cfg.tqn_train=CN()
     cfg.tqn_train.key_train_round=20
+    cfg.tqn_train.tqn_optimizer=CN(new_allowed=True)
+    cfg.tqn_train.tau = 200
+    cfg.tqn_train.mu=0.05
 
     # --------------- register corresponding check function ----------
     cfg.register_cfg_check_fun(assert_training_cfg)
