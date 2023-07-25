@@ -1,7 +1,7 @@
 from collaboFM import clip
 import torch.nn as nn
 import torch
-from collaboFM.model.resnetcifar import ResNet18_cifar10, ResNet50_cifar10,ResNet18_mnist,ResNet18_cifar10_align
+from collaboFM.model.resnetcifar import ResNet18_cifar10, ResNet50_cifar10
 import numpy as np
 
 import logging
@@ -139,7 +139,65 @@ class model_cifar(nn.Module):
         return y
 
 
-
+class model_resnet(nn.Module):
+    
+    def __init__(self,model_name,encoder_list=["identity"],encoder_para_list=None, \
+        head_list=["linear"],head_para_list=["in_dim",512,"out_dim",10],pretrained=False,num_classes=100):
+        import torchvision.models as models
+        '''
+        from pytorch
+        'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
+        'resnet34': 'https://download.pytorch.org/models/resnet34-333f7ec4.pth',
+        'resnet50': 'https://download.pytorch.org/models/resnet50-19c8e357.pth',
+        'resnet101': 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
+        'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
+        '''
+        super(model_resnet, self).__init__()
+        basemodel = None
+        if "resnet18" in model_name:
+            basemodel = models.resnet18(num_classes=num_classes, pretrained=False)
+            param_dicts_path = '/mnt/workspace/colla_group/ckpt/resnet18-5c106cde.pth'
+        elif "resnet34" in model_name:
+            basemodel = models.resnet34(num_classes=num_classes, pretrained=False)
+            param_dicts_path = '/mnt/workspace/colla_group/ckpt/resnet34-333f7ec4.pth'
+        elif "resnet50" in model_name:
+            basemodel = models.resnet50(num_classes=num_classes, pretrained=False)
+            param_dicts_path = '/mnt/workspace/colla_group/ckpt/resnet50-19c8e357.pth'
+        elif "resnet101" in model_name:
+            basemodel = models.resnet101(num_classes=num_classes, pretrained=False)
+            param_dicts_path = '/mnt/workspace/colla_group/ckpt/resnet101-5d3b4d8f.pth'
+        elif "resnet152" in model_name:
+            basemodel = models.resnet152(num_classes=num_classes, pretrained=False)
+            param_dicts_path = '/mnt/workspace/colla_group/ckpt/resnet152-b121ed2d.pth'
+        if pretrained:
+            param_dicts=torch.load(param_dicts_path)
+            basemodel.load_state_dict(param_dicts, strict=False)
+        self.backbone = nn.Sequential(*list(basemodel.children())[:-1])
+        self.encoder=nn.Sequential()
+        for idx,module_name in enumerate(encoder_list):
+            name="encoder_"+str(idx)
+            self.encoder.add_module(name,cell(module_name,encoder_para_list))
+        self.head=nn.Sequential()
+        for idx,module_name in enumerate(head_list):
+            name="head_"+str(idx)
+            self.head.add_module(name,cell(module_name,head_para_list))
+    def forward(self, x):
+        h = self.backbone(x)
+        h=h.squeeze()
+        #print(h.shape)
+        x=h
+        x=self.encoder(x)
+        y = self.head(x)
+        return y
+    def forward_with_feature(self, x):
+        #logger.debug(x)
+        h = self.backbone(x)
+        #logger.debug(h.shape)
+        h=h.squeeze()
+        x=h
+        x=self.encoder(x)
+        y = self.head(x)
+        return h, x, y
 
 class model_clip(nn.Module):
     def __init__(self,model_name):

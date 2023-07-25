@@ -14,6 +14,7 @@ def split_dirichlet(y_train,y_test,n_clients=3,beta=0.5):
     test_label=np.array(y_test)
     num = len(train_label)
     n_classes = len(np.unique(train_label))
+    print(n_classes)
     assert num > n_clients * min_size, f'The number of sample should be ' \
                                         f'greater than' \
                                         f' {n_clients * min_size}.'

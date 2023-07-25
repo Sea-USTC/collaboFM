@@ -1,0 +1,149 @@
+cfg_file: ''
+criterion:
+  type: cross_entropy
+data:
+  args: []
+  dataset: cifar10
+  file_path: ''
+  load_all_dataset: False
+  root: /mnt/workspace/colla_group/data/
+  save_data: false
+  splitter: 'dirichlet'
+  splitter_args: [{'beta':0.1}]
+  target_transform: []
+  test_pre_transform: []
+  test_target_transform: []
+  test_transform: []
+  transform: []
+  val_pre_transform: []
+  val_target_transform: []
+  val_transform: []
+device: 0
+eval:
+  batchsize: 128
+  freq: 1
+expname: ""
+expname_tag: '10client'
+federate:
+  client_num: 10
+  generic_fl_eval: false
+  method: local
+  restore_from: ''
+  sample_client_num: 4
+  sample_mode: random
+  save_to: ''
+  total_round_num: 400
+  use_hetero_model: true
+client_resource:
+  dataset: 
+    "0": caltech101
+    "1": caltech101
+    "2": caltech101
+    "3": caltech101
+    "4": caltech101
+    "5": caltech101
+    "6": caltech101
+    "7": caltech101
+    "8": caltech101
+    "9": caltech101
+  backbone: 
+    "0": ResNet50caltech101
+    "1": ResNet50caltech101
+    "2": ResNet50caltech101
+    "3": ResNet50caltech101
+    "4": ResNet50caltech101
+    "5": ResNet18caltech101
+    "6": ResNet18caltech101
+    "7": ResNet18caltech101
+    "8": ResNet18caltech101
+    "9": ResNet18caltech101
+  encoder_list:
+    "0": ["linear"]
+    "1": ["linear"]
+    "2": ["linear"]
+    "3": ["linear"]
+    "4": ["linear"]
+    "5": ["linear"]
+    "6": ["linear"]
+    "7": ["linear"]
+    "8": ["linear"]
+    "9": ["linear"]
+  encoder_para_list: 
+    "0": ["in_dim",2048,"out_dim",512]
+    "1": ["in_dim",2048,"out_dim",512]
+    "2": ["in_dim",2048,"out_dim",512]
+    "3": ["in_dim",2048,"out_dim",512]
+    "4": ["in_dim",2048,"out_dim",512]
+    "5": ["in_dim",512,"out_dim",512]
+    "6": ["in_dim",512,"out_dim",512]
+    "7": ["in_dim",512,"out_dim",512]
+    "8": ["in_dim",512,"out_dim",512]
+    "9": ["in_dim",512,"out_dim",512]
+  head_list:
+    "0": ["linear"]
+    "1": ["linear"]
+    "2": ["linear"]
+    "3": ["linear"]
+    "4": ["linear"]
+    "5": ["linear"]
+    "6": ["linear"]
+    "7": ["linear"]
+    "8": ["linear"]
+    "9": ["linear"]
+  head_para_list: 
+    "0": ["in_dim",512,"out_dim",101]
+    "1": ["in_dim",512,"out_dim",101]
+    "2": ["in_dim",512,"out_dim",101]
+    "3": ["in_dim",512,"out_dim",101]
+    "4": ["in_dim",512,"out_dim",101]
+    "5": ["in_dim",512,"out_dim",101]
+    "6": ["in_dim",512,"out_dim",101]
+    "7": ["in_dim",512,"out_dim",101]
+    "8": ["in_dim",512,"out_dim",101]
+    "9": ["in_dim",512,"out_dim",101]
+fm:
+  use: false
+grad:
+  grad_accum_count: 1
+  grad_clip: -1.0
+model:
+  backbone: ResNet18Cifar10
+  dropout: 0.5
+  encoder_list: ["identity"]
+  encoder_para_list: []
+  head_list: ["linear"]
+  head_para_list: ["in_dim", 512, "out_dim", 10]
+  hidden: 256
+  in_channels: 0
+  input_shape: []
+  out_channels: 1
+outdir: /mnt/workspace/colla_group/exp_output/caltech
+print_decimal_digits: 6
+regularizer:
+  mu: 0.0
+  type: ''
+seed: 0
+tqn_train:
+  key_train_round: 160
+  tqn_optimizer:
+    lr: 0.001
+    momentum: 0.9
+    type: Adam
+    weight_decay: 0.0
+  tau: 200
+  mu: 0.05
+train:
+  batch_or_epoch: batch
+  batchsize: 128
+  local_update_steps: 1
+  optimizer:
+    lr: 0.005
+    momentum: 0.9
+    type: SGD
+    weight_decay: 0.0
+  scheduler:
+    type: ''
+    warmup_ratio: 0.0
+use_gpu: True
+verbose: 1
+

@@ -4,6 +4,8 @@ def get_label_name(cfg, dataset):
         return cifar10_label()
     elif dataset == "cifar100":
         pass
+    elif dataset == "caltech101":
+        return caltech101_label(cfg)
 
 
 def cifar10_label():
@@ -18,4 +20,10 @@ def cifar10_label():
                   "a photo of ship",
                   "a photo of truck"
                 ]
+    return label_name
+
+def caltech101_label(cfg):
+    from torchvision.datasets import Caltech101
+    mydataset = Caltech101(root=cfg.data.root, target_type="category")
+    label_name = mydataset.categories
     return label_name

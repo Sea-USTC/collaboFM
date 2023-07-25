@@ -1,7 +1,6 @@
 #import clip
 from collaboFM.model import *
 from collaboFM.data.dataset import dataset_base
-from torchvision.datasets import CIFAR10,CIFAR100
 from collaboFM.model.model import *
 from collaboFM.auxiliaries.partition import *
 import torch.optim as optim
@@ -10,7 +9,7 @@ import torch.nn as nn
 #     pass
 #     return 0
 
-def build_ds(data_x,data_y):
+def build_ds(data_x, data_y):
     return dataset_base(data_x, data_y)
 
 def build_criterion(criterion_dicts):
@@ -66,13 +65,18 @@ def build_client_model(client_id, cfg):
     if "cifar" in model_name:
         return model_cifar(model_name=model_name, encoder_list=encoder_list, encoder_para_list=encoder_para_list, \
         head_list=head_list,head_para_list=head_para_list)
+    elif "caltech101" in model_name:
+        return model_resnet(model_name=model_name, encoder_list=encoder_list, encoder_para_list=encoder_para_list, \
+        head_list=head_list,head_para_list=head_para_list)
     elif "femnist" in model_name:
         pass
 
 
 
 def build_data(cfg,data_name):
-    
+    from torchvision.datasets import CIFAR10,CIFAR100,Caltech101
+    import os
+    import random
     # data_name: type:str "cifar10"
     # basic_config 是保存在本地默认极少修改的参数集合，例如basic_config.hidden_dim=256,说明模型中间层是256
     # control config 是训练过程中经常调整的参数集合，例如batchsize,epoch_per_round等
@@ -85,7 +89,41 @@ def build_data(cfg,data_name):
     elif data_name=="cifar100":
         # need to fill    
         pass
-  
+
+    elif data_name == "food-101":
+        pass
+
+    elif data_name == "caltech101":
+        mydataset = Caltech101(root=cfg.data.root, target_type="category")
+        test_ratio = 0.3
+        y = mydataset.y
+        data_path=[]
+        root = os.path.join(cfg.data.root, "caltech101")
+        for i in range(len(mydataset)):
+            data_path.append(os.path.join(root, "101_ObjectCategories",mydataset.categories[mydataset.y[i]],f"image_{mydataset.index[i]:04d}.jpg"))
+        base=0
+        train_x = []
+        train_y = []
+        test_x = []
+        test_y = []
+        for (i, c) in enumerate(mydataset.categories):
+            n = len(os.listdir(os.path.join(root,"101_ObjectCategories", c)))
+            sample_num = int(n*test_ratio)
+            test_idx = np.random.choice(range(n),sample_num,replace=False)
+            train_idx = []
+            for i in range(n):
+                if i not in test_idx:
+                    train_idx.append(i)
+            # print(train_idx)
+            # print(test_idx)
+            for i in train_idx:
+                train_x.append(data_path[base+i])
+                train_y.append(y[base+i])
+            for i in test_idx:
+                test_x.append(data_path[base+i])
+                test_y.append(y[base+i])
+            base+=n
+
     elif data_name=="tiny-imagenet":
         # need to fill    
         pass

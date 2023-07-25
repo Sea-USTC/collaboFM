@@ -2,7 +2,10 @@ import torchvision.transforms as transforms
 import torch
 from sklearn.metrics import accuracy_score
 import numpy as np
+import logging
 
+logger=logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 class local_baseline():
     def __init__(self,control_config):
@@ -16,8 +19,8 @@ class local_baseline():
 
     def update_client_iter(self,net,net_id,batch_x,batch_y,criterion,optimizer):
         #print(batch_x.shape)
-        normalize = transforms.Normalize((0.4914, 0.4822, 0.4465),
-                                  (0.2470, 0.2435, 0.2615))
+        normalize = transforms.Normalize((0.485, 0.456, 0.406),
+                                  (0.229, 0.224, 0.225))
         
         transform_train = transforms.Compose([
                 normalize
@@ -25,12 +28,11 @@ class local_baseline():
         batch_x=transform_train(batch_x)
 
         batch_x, batch_y = batch_x.cuda(), batch_y.cuda()
-
+        #logger.info(torch.cuda.memory_summary(device=0))
         optimizer.zero_grad()
         batch_x.requires_grad = False
         batch_y.requires_grad = False
         #target = target.long()
-
         out = net(batch_x)
 
         loss = criterion(out, batch_y)
@@ -40,8 +42,8 @@ class local_baseline():
         optimizer.step()
         
     def evaluate(self,net,dataloader,criterion):
-        normalize = transforms.Normalize((0.4914, 0.4822, 0.4465),
-                                  (0.2470, 0.2435, 0.2615))
+        normalize = transforms.Normalize((0.485, 0.456, 0.406),
+                                  (0.229, 0.224, 0.225))
         transform_test = transforms.Compose([
                 normalize
             ])

@@ -9,7 +9,7 @@ from collaboFM.data.label_name import get_label_name
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-gpus = [0, 1, 2, 3]
+gpus = [0, 1, 2]
 torch.cuda.set_device('cuda:{}'.format(gpus[0]))
 
 class SERVER():
@@ -111,6 +111,7 @@ class Algorithm_Manager():
         for dataset_name, client_list in self.client_manager.dataset2idx.items():
             for round_idx in range(self.n_rounds):
                 logger.info(f"-------------Round #{round_idx} start---------------")
+                #client_list=[0]
                 for client_idx in client_list:
                     if(self.cfg.data.load_all_dataset):
                         this_train_dl=self.client_manager.clients[client_idx].train_dl
@@ -119,12 +120,13 @@ class Algorithm_Manager():
                         this_train_ds,this_train_dl,this_test_ds,this_test_dl=\
                             self.client_manager.create_one_dataset(self.client_manager.clients[client_idx],\
                                 train_batchsize=self.cfg.train.batchsize,\
-                                test_batchsize=self.cfg.test.batchsize,num_workers=8)
+                                test_batchsize=self.cfg.eval.batchsize,num_workers=8)
                     net=self.client_manager.clients[client_idx].net
-
                     criterion=build_criterion(self.cfg.criterion).cuda()
                     optimizer=build_optimizer(net,self.cfg.train.optimizer,round_idx)
-                    net=nn.DataParallel(net.to(f"cuda:{gpus[0]}"), device_ids=gpus, output_device=gpus[0])
+                    #net=nn.DataParallel(net.to(f"cuda:{gpus[0]}"), device_ids=gpus, output_device=gpus[0])
+                    net.cuda()
+                    #logger.info(torch.cuda.memory_summary(device=0))
                     for epoch in range(self.training_epochs):                    
                         net.train()
                         for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
