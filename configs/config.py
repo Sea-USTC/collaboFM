@@ -265,7 +265,7 @@ def init_global_cfg(cfg):
 
     # Specify the device
     cfg.device = -1
-
+    cfg.gpus = [0,1,2,3]
     # Random seed
     cfg.seed = 0
 

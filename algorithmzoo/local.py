@@ -34,7 +34,7 @@ class local_baseline():
         batch_y.requires_grad = False
         #target = target.long()
         out = net(batch_x)
-
+        #print(batch_y)
         loss = criterion(out, batch_y)
         
         loss.backward()
@@ -58,6 +58,7 @@ class local_baseline():
                 x=transform_test(x)
                 x, target = x.cuda(), target.to(dtype=torch.int64).cuda()
                 out = net(x)
+                #print(out.shape)
                 loss = criterion(out, target)
                 _, pred_label = torch.max(out.data, 1)
                 loss_collector.append(loss.item())

@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch
 from collaboFM.model.resnetcifar import ResNet18_cifar10, ResNet50_cifar10
 import numpy as np
-
+import timm
 import logging
 
 logger=logging.getLogger(__name__)
@@ -198,6 +198,53 @@ class model_resnet(nn.Module):
         x=self.encoder(x)
         y = self.head(x)
         return h, x, y
+
+class model_vit(nn.Module):
+    def __init__(self,model_name,encoder_list=["identity"],encoder_para_list=None, \
+        head_list=["linear"],head_para_list=["in_dim",512,"out_dim",10],pretrained=False,num_classes=100):
+        super(model_vit, self).__init__()
+        #checkpoint_path="/mnt/workspace/colla_group/ckpt/"
+        checkpoint_path = ""
+        if model_name=="vittiny_16_224":
+            basemodel=timm.create_model('vit_tiny_patch16_224', pretrained=pretrained, drop_path_rate=0.1,num_classes=head_para_list[3],checkpoint_path=checkpoint_path)
+        if model_name=="vitsmall_16_224":
+            basemodel=timm.create_model('vit_small_patch16_224', pretrained=pretrained, drop_path_rate=0.1,num_classes=head_para_list[3],checkpoint_path=checkpoint_path)
+        if model_name=="vitbase_16_224":
+            basemodel=timm.create_model('vit_base_patch16_224', pretrained=pretrained, drop_path_rate=0.1,num_classes=head_para_list[3],checkpoint_path=checkpoint_path)
+        if model_name=="vitbase_32_224":
+            basemodel=timm.create_model('vit_base_patch32_224', pretrained=pretrained, drop_path_rate=0.1,num_classes=head_para_list[3],checkpoint_path=checkpoint_path)
+        if model_name=="vitlarge_16_224":
+            basemodel=timm.create_model('vit_large_patch16_224', pretrained=pretrained, drop_path_rate=0.1,num_classes=head_para_list[3],checkpoint_path=checkpoint_path)
+        if model_name=="vitlarge_32_224":
+            basemodel=timm.create_model('vit_large_patch32_224', pretrained=pretrained, drop_path_rate=0.1,num_classes=head_para_list[3],checkpoint_path=checkpoint_path)
+        self.backbone = basemodel
+        self.encoder=nn.Sequential()
+        for idx,module_name in enumerate(encoder_list):
+            name="encoder_"+str(idx)
+            self.encoder.add_module(name,cell(module_name,encoder_para_list))
+        self.head=nn.Sequential()
+        for idx,module_name in enumerate(head_list):
+            name="head_"+str(idx)
+            self.head.add_module(name,cell(module_name,head_para_list))
+
+    def forward(self, x):
+        h = self.backbone.forward_features(x)
+        #print(h.shape)
+        x = h
+        x = self.backbone.forward_head(x,pre_logits=True)
+        x = self.encoder(x)
+        y = self.head(x)
+        return y
+    def forward_with_feature(self, x):
+        h = self.backbone.forward_features(x)
+        #logger.info(h.shape)
+        x=h
+        x=self.backbone.forward_head(x,pre_logits=True)
+        x=self.encoder(x)
+        #logger.info(x.shape)
+        return h, x
+
+
 
 class model_clip(nn.Module):
     def __init__(self,model_name):

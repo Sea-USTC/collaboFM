@@ -17,16 +17,16 @@ def build_criterion(criterion_dicts):
         return nn.CrossEntropyLoss()
     
 
-def build_optimizer(net,optim_dicts,round):
+def build_optimizer(param,optim_dicts,round):
     if optim_dicts["type"]=="SGD":
         # for num,para in enumerate(paras):
         #     print('number:',num)
         #     print(para)
         #     print('_____________________________')
-        return optim.SGD(filter(lambda p: p.requires_grad, net.parameters()), lr=optim_dicts["lr"]/(round+1),\
+        return optim.SGD(filter(lambda p: p.requires_grad, param), lr=optim_dicts["lr"]/(round+1),\
              momentum=optim_dicts["momentum"], weight_decay=optim_dicts["weight_decay"])
     elif optim_dicts["type"]=="Adam":
-        return optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr=optim_dicts["lr"]/(round+1))
+        return optim.Adam(filter(lambda p: p.requires_grad, param), lr=optim_dicts["lr"]/(round+1))
     
 def build_training_sequence(n_clients=10,clients_per_round=3,n_rounds=2,mode="random"):
     ### input:
@@ -65,11 +65,12 @@ def build_client_model(client_id, cfg):
     if "cifar" in model_name:
         return model_cifar(model_name=model_name, encoder_list=encoder_list, encoder_para_list=encoder_para_list, \
         head_list=head_list,head_para_list=head_para_list)
-    elif "caltech101" in model_name:
+    elif "resnet" in model_name: #224resnet
         return model_resnet(model_name=model_name, encoder_list=encoder_list, encoder_para_list=encoder_para_list, \
         head_list=head_list,head_para_list=head_para_list)
-    elif "femnist" in model_name:
-        pass
+    elif "vit" in model_name:
+        return model_vit(model_name=model_name, encoder_list=encoder_list, encoder_para_list=encoder_para_list, \
+        head_list=head_list,head_para_list=head_para_list)
 
 
 

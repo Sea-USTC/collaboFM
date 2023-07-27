@@ -14,5 +14,4 @@ def _setup_logger():
     logger.addHandler(handler)
     logger.propagate = False
 
-
 _setup_logger()

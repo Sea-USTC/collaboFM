@@ -115,6 +115,7 @@ if __name__=="__main__":
     update_logger(init_cfg, clear_before_add=True)
     setup_seed(init_cfg.seed)
     init_cfg.freeze()
+    torch.cuda.set_device('cuda:{}'.format(init_cfg.gpus[0]))
     logger.info("start training!!!")
     client_manager=Client_Manager_base(init_cfg)
 
@@ -128,7 +129,8 @@ if __name__=="__main__":
                 test_batchsize=init_cfg.eval.batchsize, num_workers=8)
     # if control_config.load_all_model==True:
     client_manager.create_all_models()
-    
+    for i in range(init_cfg.federate.client_num):
+        print(len(client_manager.clients[i].train_ds))
 
     algorithm_manager=Algorithm_Manager(init_cfg,client_manager)
     algorithm_manager.simulation()

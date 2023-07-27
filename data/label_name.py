@@ -26,4 +26,9 @@ def caltech101_label(cfg):
     from torchvision.datasets import Caltech101
     mydataset = Caltech101(root=cfg.data.root, target_type="category")
     label_name = mydataset.categories
+    for i, label in enumerate(label_name):
+        if "_" in label:
+            label = label.replace("_"," ")
+        label_name[i] = "A photo of "+label 
+    print(label_name)
     return label_name
