@@ -66,7 +66,7 @@ class Client_Manager_base():
                     np.array(self.test_x)[test_idx_dict[i]], np.array(self.test_y)[test_idx_dict[i]]
                 self.clients[idx_list[i]].train_ds=build_ds(site_train_x,site_train_y)
                 self.clients[idx_list[i]].train_dl=DataLoader(dataset=self.clients[idx_list[i]].train_ds, batch_size=train_batchsize, \
-                    drop_last=True, shuffle=True,num_workers=num_workers)
+                    drop_last=False, shuffle=True,num_workers=num_workers)
 
                 self.clients[idx_list[i]].test_ds=build_ds(site_test_x,site_test_y)
                 self.clients[idx_list[i]].test_dl=DataLoader(dataset=self.clients[idx_list[i]].test_ds, batch_size=test_batchsize, \
@@ -82,7 +82,7 @@ class Client_Manager_base():
 
             self.clients[client_idx].train_ds=build_ds(train_x,train_y)
             self.clients[client_idx].train_dl=DataLoader(dataset=self.clients[client_idx].train_ds, batch_size=train_batchsize, \
-                drop_last=True, shuffle=True,num_workers=num_workers)
+                drop_last=False, shuffle=True,num_workers=num_workers)
 
             self.clients[client_idx].test_ds=build_ds(test_x,test_y)
             self.clients[client_idx].test_dl=DataLoader(dataset=self.clients[client_idx].test_ds, batch_size=test_batchsize, \
@@ -99,7 +99,7 @@ class Client_Manager_base():
 
         this_train_ds=build_ds(train_x,train_y)
         this_train_dl=DataLoader(dataset=this_train_ds, batch_size=train_batchsize, \
-            drop_last=True, shuffle=True,num_workers=num_workers)
+            drop_last=False, shuffle=True,num_workers=num_workers)
         this_test_ds=build_ds(test_x,test_y)
         this_test_dl=DataLoader(dataset=this_test_ds, batch_size=test_batchsize, \
             drop_last=False, shuffle=False,num_workers=num_workers)

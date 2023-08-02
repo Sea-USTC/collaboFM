@@ -30,5 +30,5 @@ def caltech101_label(cfg):
         if "_" in label:
             label = label.replace("_"," ")
         label_name[i] = "A photo of "+label 
-    print(label_name)
+    # print(label_name)
     return label_name

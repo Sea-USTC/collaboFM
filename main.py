@@ -1,5 +1,6 @@
 import os
 import sys
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1' 
 
 DEV_MODE = True  # simplify the federatedscope re-setup everytime we change
 # the source codes
@@ -21,6 +22,8 @@ from collaboFM.auxiliaries.utils import setup_seed
 import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
+# torch.autograd.set_detect_anomaly(True)
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -112,6 +115,7 @@ if __name__=="__main__":
     control_config=get_args()
     if(control_config.cfg_file):
         init_cfg.merge_from_file(control_config.cfg_file)
+    init_cfg.merge_from_list(control_config.opts)
     update_logger(init_cfg, clear_before_add=True)
     setup_seed(init_cfg.seed)
     init_cfg.freeze()

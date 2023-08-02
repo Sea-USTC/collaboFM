@@ -70,7 +70,7 @@ def build_client_model(client_id, cfg):
         head_list=head_list,head_para_list=head_para_list)
     elif "vit" in model_name:
         return model_vit(model_name=model_name, encoder_list=encoder_list, encoder_para_list=encoder_para_list, \
-        head_list=head_list,head_para_list=head_para_list)
+        head_list=head_list,head_para_list=head_para_list,pretrained=cfg.model.pretrained)
 
 
 
@@ -91,8 +91,28 @@ def build_data(cfg,data_name):
         # need to fill    
         pass
 
-    elif data_name == "food-101":
-        pass
+    elif data_name == "food101":
+        import json
+        dataset_dir = cfg.data.root
+        dataset_dir="/mnt/workspace/colla_group/data/food-101/"
+        image_dir = os.path.join(dataset_dir, "images")
+        f1 = open(os.path.join(dataset_dir,"meta/train.json"),"r")
+        train = json.loads(f1.read())
+        class_names = sorted(train.keys())
+        f2 = open(os.path.join(dataset_dir,"meta/test.json"),"r")
+        test = json.loads(f2.read())
+        train_x=[]
+        train_y=[]
+        test_x=[]
+        test_y=[]
+        for class_idx,class_name in enumerate(class_names):
+            train_paths = train[class_name]
+            train_x += [image_dir+"/"+item+".jpg" for item in train_paths]
+            train_y += [class_idx] * len(train_paths)
+
+            test_paths = test[class_name]
+            test_x += [image_dir+"/"+item+".jpg" for item in test_paths]
+            test_y += [class_idx] * len(test_paths)
 
     elif data_name == "caltech101":
         mydataset = Caltech101(root=cfg.data.root, target_type="category")

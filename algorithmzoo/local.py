@@ -7,6 +7,9 @@ import logging
 logger=logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+
+normalize = transforms.Normalize((0.485, 0.456, 0.406),
+                                  (0.229, 0.224, 0.225))
 class local_baseline():
     def __init__(self,control_config):
         self.cfg=control_config
@@ -19,8 +22,7 @@ class local_baseline():
 
     def update_client_iter(self,net,net_id,batch_x,batch_y,criterion,optimizer):
         #print(batch_x.shape)
-        normalize = transforms.Normalize((0.485, 0.456, 0.406),
-                                  (0.229, 0.224, 0.225))
+        
         
         transform_train = transforms.Compose([
                 normalize
@@ -42,8 +44,6 @@ class local_baseline():
         optimizer.step()
         
     def evaluate(self,net,dataloader,criterion):
-        normalize = transforms.Normalize((0.485, 0.456, 0.406),
-                                  (0.229, 0.224, 0.225))
         transform_test = transforms.Compose([
                 normalize
             ])
@@ -62,11 +62,12 @@ class local_baseline():
                 loss = criterion(out, target)
                 _, pred_label = torch.max(out.data, 1)
                 loss_collector.append(loss.item())
+                #logger.info(loss_collector)
                 #total += x.data.size()[0]
                 #correct += (pred_label == target.data).sum().item()
                 pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
                 true_labels_list = np.append(true_labels_list, target.data.cpu().numpy())
-            avg_loss = sum(loss_collector) / len(loss_collector)
+            avg_loss = sum(loss_collector) / len(true_labels_list)
             acc=accuracy_score(true_labels_list,pred_labels_list)
 
         return avg_loss,acc    

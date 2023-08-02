@@ -20,6 +20,7 @@ def extend_model_cfg(cfg):
     cfg.model.encoder_para_list=[]
     cfg.model.head_list=[]
     cfg.model.head_para_list=[]
+    cfg.model.pretrained=False
     # ---------------------------------------------------------------------- #
     # Criterion related options
     # ---------------------------------------------------------------------- #

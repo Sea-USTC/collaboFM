@@ -13,7 +13,7 @@ class dataset_base(data.Dataset):#需要继承data.Dataset
         data_x=self.raw_data_x[index]
         data_y=self.raw_data_y[index]
         if isinstance(data_x, str):
-            data_x=np.array(Image.open(data_x).resize((self.new_size, self.new_size)))
+            data_x=np.array(Image.open(data_x).convert("RGB").resize((self.new_size, self.new_size)))
         data_x=to_tensor(data_x)
         if data_x.shape[0] == 1:
             data_x=data_x.repeat(3,1,1)

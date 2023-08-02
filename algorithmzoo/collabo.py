@@ -50,40 +50,64 @@ class collabo():
         optimizer.step()
         return N, loss, angle
 
-    def similarity(self, out, label2repre,target,flag="cluster", tau=20):
+    def similarity(self, out, label2repre,target,flag="cluster", tau=20,norm=True):
         loss=torch.tensor([0.0]).cuda()
-        loss_kad=torch.tensor([0.0]).cuda()
         angle=[]
-        
+        if norm:
+            out = torch.nn.functional.normalize(out, dim=-1)
+            label2repre = torch.nn.functional.normalize(label2repre, dim=-1)
+        if flag == "KADpro":
+            label_y = []
+            for i in range(len(target)):
+                label_y.append(label2repre[target[i]])
+            label_y=torch.vstack(label_y).t()
+            z = torch.mm(out,label_y)/tau
+            z_image = torch.nn.functional.log_softmax(z,dim=1)
+            z_text = torch.nn.functional.log_softmax(z,dim=0)
+            for i in range(out.shape[0]):
+                loss-=z_image[i,i]
+                loss-=z_text[i,i]
+        if flag == "l2distance":
+            label_y = []
+            for i in range(len(target)):
+                label_y.append(label2repre[target[i]])
+            label_y=torch.vstack(label_y)
+            pdist = torch.nn.PairwiseDistance()
+            loss = torch.sum(pdist(label_y, out))
         for tgt in torch.unique(target): 
-            tgt_idx = target[target==tgt]
+            tgt_idx = np.where((target==tgt).cpu())[0]
+            #logger.info(tgt_idx)
                 #label2repre: [class_num, embed_dim]
                 #out: [batchsize, embed_dim]   
-                #target: [batchsize]
-            if flag=="KAD":
+                #target: [batchsize]           
+            if "KAD" in flag:
                 sample_set=label2repre.t()/tau         
                 loss-=torch.sum(torch.nn.functional.log_softmax(torch.mm(out[tgt_idx,:],sample_set),dim=1)[:,tgt])  
-                non_tgt_idx = target[target!=tgt]
+                non_tgt_idx = np.where((target!=tgt).cpu())[0]
                 for i in tgt_idx:
                     z_set = torch.vstack([out[i,:], out[non_tgt_idx,:]]).t()/tau
                     loss-=torch.nn.functional.log_softmax(torch.mm(label2repre[tgt].reshape(1,-1),z_set)/tau,dim=1)[0,0]
-                loss_kad=loss
             
             if flag in ["KAD+","cluster","cluster-"]:   
                 z_set = torch.vstack([out[tgt_idx,:],label2repre[tgt]])
-                N = len(z_set)
+                #logger.info(z_set.shape)
+                N = z_set.shape[0]
                 conv=torch.mm(z_set, z_set.t())/tau
                 conv=torch.nn.functional.log_softmax(conv,dim=1)
                 if flag=="cluster":
                     #logger.info(conv)
                     loss-=torch.sum(conv)/N
+                    logger.info(torch.sum(conv).item())
+                    #logger.info(loss.data)
                 elif flag=="cluster-":
-                    loss-=torch.sum(conv[:,N-1])/N
+                    loss-=torch.sum(conv[:,-1])
                 else :
-                    loss=loss_kad-torch.sum(conv)/N
+                    loss-=8*torch.sum(conv)/N
+            # for i in tgt_idx:
+            #     angle.append((torch.dot(out[i,:],label2repre[tgt,:])/torch.linalg.vector_norm(out[i,])/torch.linalg.vector_norm(label2repre[tgt,])).item())
             for i in tgt_idx:
-                angle.append((torch.dot(out[i,:],label2repre[tgt,:])/torch.linalg.vector_norm(out[i,:])/torch.linalg.vector_norm(label2repre[tgt,:])).item())
-        return loss.cuda(),angle
+                angle.append(torch.linalg.vector_norm(out[i,]-label2repre[tgt,]).item())
+        return loss.cuda(), angle
 
 
     def train_tqn_model(self,net,net_id,batch_x,batch_y,label2repre,round):

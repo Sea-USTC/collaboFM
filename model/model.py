@@ -226,6 +226,7 @@ class model_vit(nn.Module):
         for idx,module_name in enumerate(head_list):
             name="head_"+str(idx)
             self.head.add_module(name,cell(module_name,head_para_list))
+        self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
 
     def forward(self, x):
         h = self.backbone.forward_features(x)
@@ -241,6 +242,7 @@ class model_vit(nn.Module):
         x=h
         x=self.backbone.forward_head(x,pre_logits=True)
         x=self.encoder(x)
+        x=x/x.norm(dim=1,keepdim=True)
         #logger.info(x.shape)
         return h, x
 
