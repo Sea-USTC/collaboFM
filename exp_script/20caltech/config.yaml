@@ -1,0 +1,210 @@
+cfg_file: ''
+criterion:
+  type: cross_entropy
+data:
+  args: []
+  dataset: cifar10
+  file_path: ''
+  load_all_dataset: False
+  root: /mnt/workspace/colla_group/data/
+  save_data: false
+  splitter: 'dirichlet'
+  splitter_args: [{'beta':0.1}]
+  target_transform: []
+  test_pre_transform: []
+  test_target_transform: []
+  test_transform: []
+  transform: []
+  val_pre_transform: []
+  val_target_transform: []
+  val_transform: []
+device: 0
+eval:
+  batchsize: 128
+  freq: 1
+expname: ""
+expname_tag: 'c15'
+federate:
+  client_num: 15
+  generic_fl_eval: false
+  method: collabo
+  restore_from: ''
+  sample_client_num: 4
+  sample_mode: random
+  save_to: ''
+  total_round_num: 160
+  use_hetero_model: true
+client_resource:
+  dataset: 
+    "0":  caltech101
+    "1":  caltech101
+    "2":  caltech101
+    "3":  caltech101
+    "4":  caltech101
+    "5":  caltech101
+    "6":  caltech101
+    "7":  caltech101
+    "8":  caltech101
+    "9":  caltech101
+    "10": caltech101
+    "11": caltech101
+    "12": caltech101
+    "13": caltech101
+    "14": caltech101
+    "15": caltech101
+    "16": caltech101
+    "17": caltech101
+    "18": caltech101
+    "19": caltech101
+  backbone: 
+    "0":  vittiny_16_224
+    "1":  vittiny_16_224
+    "2":  vittiny_16_224
+    "3":  vittiny_16_224
+    "4":  vittiny_16_224
+    "5":  vitsmall_16_224
+    "6":  vitsmall_16_224
+    "7":  vitsmall_16_224
+    "8":  vitsmall_16_224
+    "9":  vitsmall_16_224
+    "10": vitbase_16_224
+    "11": vitbase_16_224
+    "12": vitbase_16_224
+    "13": vitbase_16_224
+    "14": vitbase_16_224
+    "15": vitlarge_16_224
+    "16": vitlarge_16_224
+    "17": vitlarge_16_224
+    "18": vitlarge_16_224
+    "19": vitlarge_16_224
+  encoder_list:
+    "0":  ["linear"]
+    "1":  ["linear"]
+    "2":  ["linear"]
+    "3":  ["linear"]
+    "4":  ["linear"]
+    "5":  ["linear"]
+    "6":  ["linear"]
+    "7":  ["linear"]
+    "8":  ["linear"]
+    "9":  ["linear"]
+    "10": ["linear"]
+    "11": ["linear"]
+    "12": ["linear"]
+    "13": ["linear"]
+    "14": ["linear"]
+    "15": ["linear"]
+    "16": ["linear"]
+    "17": ["linear"]
+    "18": ["linear"]
+    "19": ["linear"]
+  encoder_para_list: 
+    "0":  ["in_dim",192,"out_dim",512]
+    "1":  ["in_dim",192,"out_dim",512]
+    "2":  ["in_dim",192,"out_dim",512]
+    "3":  ["in_dim",192,"out_dim",512]
+    "4":  ["in_dim",192,"out_dim",512]
+    "5":  ["in_dim",384,"out_dim",512]
+    "6":  ["in_dim",384,"out_dim",512]
+    "7":  ["in_dim",384,"out_dim",512]
+    "8":  ["in_dim",384,"out_dim",512]
+    "9":  ["in_dim",384,"out_dim",512]
+    "10": ["in_dim",768,"out_dim",512]
+    "11": ["in_dim",768,"out_dim",512]
+    "12": ["in_dim",768,"out_dim",512]
+    "13": ["in_dim",768,"out_dim",512]
+    "14": ["in_dim",768,"out_dim",512]
+    "15": ["in_dim",1024,"out_dim",512]
+    "16": ["in_dim",1024,"out_dim",512]
+    "17": ["in_dim",1024,"out_dim",512]
+    "18": ["in_dim",1024,"out_dim",512]
+    "19": ["in_dim",1024,"out_dim",512]
+  head_list:
+    "0":  ["linear"]
+    "1":  ["linear"]
+    "2":  ["linear"]
+    "3":  ["linear"]
+    "4":  ["linear"]
+    "5":  ["linear"]
+    "6":  ["linear"]
+    "7":  ["linear"]
+    "8":  ["linear"]
+    "9":  ["linear"]
+    "10": ["linear"]
+    "11": ["linear"]
+    "12": ["linear"]
+    "13": ["linear"]
+    "14": ["linear"]
+    "15": ["linear"]
+    "16": ["linear"]
+    "17": ["linear"]
+    "18": ["linear"]
+    "19": ["linear"]
+  head_para_list: 
+    "0":  ["in_dim",512,"out_dim",101]
+    "1":  ["in_dim",512,"out_dim",101]
+    "2":  ["in_dim",512,"out_dim",101]
+    "3":  ["in_dim",512,"out_dim",101]
+    "4":  ["in_dim",512,"out_dim",101]
+    "5":  ["in_dim",512,"out_dim",101]
+    "6":  ["in_dim",512,"out_dim",101]
+    "7":  ["in_dim",512,"out_dim",101]
+    "8":  ["in_dim",512,"out_dim",101]
+    "9":  ["in_dim",512,"out_dim",101]
+    "10": ["in_dim",512,"out_dim",101]
+    "11": ["in_dim",512,"out_dim",101]
+    "12": ["in_dim",512,"out_dim",101]
+    "13": ["in_dim",512,"out_dim",101]
+    "14": ["in_dim",512,"out_dim",101]
+    "15": ["in_dim",512,"out_dim",101]
+    "16": ["in_dim",512,"out_dim",101]
+    "17": ["in_dim",512,"out_dim",101]
+    "18": ["in_dim",512,"out_dim",101]
+    "19": ["in_dim",512,"out_dim",101]
+fm:
+  use: false
+grad:
+  grad_accum_count: 1
+  grad_clip: -1.0
+gpus: [2,3]
+model:
+  backbone: ResNet18Cifar10
+  dropout: 0.5
+  encoder_list: ["identity"]
+  encoder_para_list: []
+  head_list: ["linear"]
+  head_para_list: ["in_dim", 512, "out_dim", 10]
+  hidden: 256
+  in_channels: 0
+  input_shape: []
+  out_channels: 1
+outdir: /mnt/workspace/colla_group/exp_output/c15
+print_decimal_digits: 6
+regularizer:
+  mu: 0.0
+  type: ''
+seed: 0
+tqn_train:
+  key_train_round: 160
+  tqn_optimizer:
+    lr: 0.0008
+    momentum: 0.9
+    type: Adam
+    weight_decay: 0.0
+  tau: 20
+  mu: 0.05
+train:
+  batch_or_epoch: batch
+  batchsize: 32
+  local_update_steps: 1
+  optimizer:
+    lr: 0.01
+    momentum: 0.9
+    type: SGD
+    weight_decay: 0.0
+  scheduler:
+    type: ''
+    warmup_ratio: 0.0
+use_gpu: True
+verbose: 1
+
