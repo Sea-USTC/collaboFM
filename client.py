@@ -1,6 +1,13 @@
 from collaboFM.build import build_client_model,build_ds,build_data,build_split
 import numpy as np
 from torch.utils.data.dataloader import DataLoader
+
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+
 class CLIENT():
     def __init__(self):
         self.id=None
@@ -38,10 +45,12 @@ class Client_Manager_base():
         self.train_idx_dict=None
         self.test_idx_dict=None
 
+        self.class_dict = {}
+
     # build data(train_x,train_y,test_x,test_y), build split, build index of all clients 
     def create_fed_split_index(self):    
         self.train_x,self.train_y,self.test_x,self.test_y=build_data(self.cfg,self.cfg.data.dataset)
-        self.train_idx_dict,self.test_idx_dict=build_split(self.train_y,self.test_y,self.cfg,self.n_clients)
+        self.train_idx_dict,self.test_idx_dict=build_split(self.train_y,self.test_y,self.cfg,self.n_clients,self.class_dict)
         for i in range(self.n_clients):
             self.clients[i].train_idx=self.train_idx_dict[i]
             self.clients[i].test_idx=self.test_idx_dict[i]
@@ -56,7 +65,9 @@ class Client_Manager_base():
         for dataset_name,idx_list in self.dataset2idx.items():
             self.train_x, self.train_y, self.test_x, self.test_y = \
                 build_data(self.cfg,dataset_name)
-            train_idx_dict,test_idx_dict = build_split(self.train_y,self.test_y,self.cfg,len(idx_list))
+            train_idx_dict,test_idx_dict = build_split(self.train_y,self.test_y,self.cfg, len(idx_list), self.class_dict)
+            # for i in range(len(idx_list)):
+            #     logger.info(self.class_dict[i])
             for i in range(len(idx_list)):
                 self.clients[idx_list[i]].train_idx=train_idx_dict[i]#feels like these assignments are meaningless
                 self.clients[idx_list[i]].test_idx=test_idx_dict[i]
@@ -105,6 +116,18 @@ class Client_Manager_base():
             drop_last=False, shuffle=False,num_workers=num_workers)
         return this_train_ds,this_train_dl,this_test_ds,this_test_dl
     
+    def create_one_dataset_test(self,client,train_batchsize=128,test_batchsize=128,num_workers=8):
+        train_idx,test_idx=client.train_idx,client.test_idx
+        #print(self.train_x)
+        #print(self.train_y)
+        test_x,test_y=np.array(self.test_x)[test_idx],np.array(self.test_y)[test_idx]
+
+        this_test_ds=build_ds(test_x,test_y)
+        this_test_dl=DataLoader(dataset=this_test_ds, batch_size=test_batchsize, \
+            drop_last=False, shuffle=False,num_workers=num_workers)
+        return this_test_ds,this_test_dl
+
+
     # load the union dataset and dataloader of all clients in RAM
     def create_whole_dataset(self,train_batchsize=128,test_batchsize=128,num_workers=8):
         self.train_ds_all=build_ds(self.train_x,self.train_y,data_idx=None)

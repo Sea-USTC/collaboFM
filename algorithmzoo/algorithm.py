@@ -5,6 +5,8 @@ from collaboFM.algorithmzoo.fedavg import FedAvg
 from collaboFM.algorithmzoo.collabo import collabo
 from collaboFM.algorithmzoo.local import local_baseline
 from collaboFM.data.label_name import get_label_name
+from collaboFM.data.dataset import get_mean_std
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -267,9 +269,7 @@ class Algorithm_Manager():
                         tot=0
                         angle=[]
                         for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
-                            normalize = transforms.Normalize((0.4914, 0.4822, 0.4465),
-                                  (0.2470, 0.2435, 0.2615))
-        
+                            normalize = get_mean_std(dataset_name)
                             transform_train = transforms.Compose([
                                     normalize
                                 ])
@@ -306,9 +306,7 @@ class Algorithm_Manager():
                         true_labels_list, pred_labels_list = np.array([]), np.array([])
                         loss_collector = []
                         for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
-                            normalize = transforms.Normalize((0.4914, 0.4822, 0.4465),
-                                  (0.2470, 0.2435, 0.2615))
-        
+                            normalize = get_mean_std(dataset_name)
                             transform_train = transforms.Compose([
                                     normalize
                                 ])
@@ -334,9 +332,7 @@ class Algorithm_Manager():
                         true_labels_list, pred_labels_list = np.array([]), np.array([])
                         loss_collector = []
                         for batch_idx, (batch_x, batch_y) in enumerate(this_test_dl):
-                            normalize = transforms.Normalize((0.4914, 0.4822, 0.4465),
-                                  (0.2470, 0.2435, 0.2615))
-        
+                            normalize = get_mean_std(dataset_name)
                             transform_train = transforms.Compose([
                                     normalize
                                 ])
@@ -364,7 +360,7 @@ class Algorithm_Manager():
         for dataset_name, client_list in self.client_manager.dataset2idx.items():
             for round_idx in range(self.n_rounds):
                 logger.info(f"-------------Round #{round_idx} start---------------")
-                client_list=[0]
+                # client_list=[0]
                 for client_idx in client_list:
                     if(self.cfg.data.load_all_dataset):
                         this_train_dl=self.client_manager.clients[client_idx].train_dl
@@ -375,8 +371,9 @@ class Algorithm_Manager():
                                 train_batchsize=self.cfg.train.batchsize,\
                                 test_batchsize=self.cfg.eval.batchsize,num_workers=8)
                     net=self.client_manager.clients[client_idx].net
+                    from math import sqrt
                     criterion=build_criterion(self.cfg.criterion).cuda()
-                    optimizer=build_optimizer(net.parameters(),self.cfg.tqn_train.tqn_optimizer,round_idx)
+                    optimizer=build_optimizer(net.parameters(),self.cfg.tqn_train.tqn_optimizer,sqrt(round_idx))
                     #net=nn.DataParallel(net.to(f"cuda:{self.cfg.gpus[0]}"), device_ids=self.cfg.gpus, output_device=self.cfg.gpus[0])
                     net.cuda()
                     #logger.info(torch.cuda.memory_summary(device=0))
@@ -399,282 +396,172 @@ class Algorithm_Manager():
         self.algorithm=collabo(self.cfg)
         device = "cuda" if torch.cuda.is_available() else "cpu"
         self.server.net, preprocess = clip.load("/mnt/workspace/colla_group/ViT-B-32.pt", device=device)
+        weights=[len(self.client_manager.clients[idx].train_ds) for idx in range(self.client_manager.n_clients)]
         for dataset_name, client_list in self.client_manager.dataset2idx.items():
+            # test_ds_all=build_ds(self.client_manager.test_x,self.client_manager.test_y)
+            # test_dl_all=DataLoader(dataset=test_ds_all, batch_size=self.cfg.eval.batchsize,\
+            #  drop_last=False, shuffle=False,num_workers=8)
             label_name = get_label_name(self.cfg, dataset_name)
-            label2token=clip.tokenize(label_name).cuda()
-            label2repre=self.server.net.encode_text(label2token)
-            dump_path="/mnt/workspace/lisiyi/result/backbone.pt"
-            client_list=[1]
-            decay_round=10
-            loss_type="cluster-"
-            normalize = transforms.Normalize((0.485, 0.456, 0.406),
-                                  (0.229, 0.224, 0.225))
-            split_train = True
-            if split_train:
-                for round_idx in range(self.cfg.tqn_train.key_train_round):
-                    logger.info(f"##########Encoder Round #{round_idx} ################")
-                    for client_idx in client_list:
-                        logger.info(f"--------------client #{client_idx}------------------\n"
-                                    f"              encoder train start!")
-                        if(self.cfg.data.load_all_dataset):
-                            this_train_dl=self.client_manager.clients[client_idx].train_dl
-                            this_test_dl=self.client_manager.clients[client_idx].test_dl
-                        else:
-                            this_train_ds,this_train_dl,this_test_ds,this_test_dl=\
-                                self.client_manager.create_one_dataset(self.client_manager.clients[client_idx],\
-                                    train_batchsize=self.cfg.train.batchsize,\
-                                    test_batchsize=self.cfg.eval.batchsize,num_workers=8)
-                        net=self.client_manager.clients[client_idx].net
-                        net.cuda()
-                        from torch.nn import CrossEntropyLoss
-                        #print(type(tqn.parameters()))
-                        optimizer = build_optimizer(net.parameters(),self.cfg.train.optimizer,round_idx)
-                        criterion4encoder=self.algorithm.similarity
-                        #optimizer4encoder=build_optimizer(net,self.cfg.train.optimizer,round_idx)
-                        for epoch in range(self.training_epochs):
-                            net.train()
-                            loss=0
-                            tot=0
-                            angle=[]
-                            for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
-                                
-            
-                                transform_train = transforms.Compose([
-                                        normalize
-                                    ])
-                                batch_x.requires_grad = False
-                                batch_y.requires_grad = False
+            label2token = clip.tokenize(label_name).cuda()
+            label2repre = self.server.net.encode_text(label2token)
+            label2repre=label2repre/label2repre.norm(dim=1,keepdim=True)
+            dump_path = "/mnt/workspace/lisiyi/result/backbone.pt"
+            decay_round = 10
+            loss_type="KADpro"
+            normalize = get_mean_std(dataset_name)
+            local_repre={}
+            class_array={}
+            for client_idx in client_list:
+                class_array[client_idx] = self.client_manager.class_dict[client_idx]
+                # logger.info(type(class_array[client_idx]))
+                local_token =  clip.tokenize([label_name[i] for i in class_array[client_idx]]).cuda()
+                local_repre[client_idx] = self.server.net.encode_text(local_token)
+                local_repre[client_idx] = local_repre[client_idx]/local_repre[client_idx].norm(dim=1,keepdim=True)
+            for round_idx in range(self.cfg.tqn_train.key_train_round):
+                logger.info(f"##########Round #{round_idx} ################")
+                for client_idx in client_list:
+                    class2idx = {}
+                    for i, j in enumerate(class_array[client_idx]):
+                        class2idx[j]=i
+                    # logger.info(class2idx.values())
+                    logger.info(f"--------------client #{client_idx}------------------\n"
+                                f"              train start!")
+                    if(self.cfg.data.load_all_dataset):
+                        this_train_dl=self.client_manager.clients[client_idx].train_dl
+                        this_test_dl=self.client_manager.clients[client_idx].test_dl
+                    else:
+                        this_train_ds,this_train_dl,this_test_ds,this_test_dl=\
+                            self.client_manager.create_one_dataset(self.client_manager.clients[client_idx],\
+                                train_batchsize=self.cfg.train.batchsize,\
+                                test_batchsize=self.cfg.eval.batchsize,num_workers=8)
+                    net=self.client_manager.clients[client_idx].net
+                    tqn=self.algorithm.tqn[client_idx]
+                    net.cuda()
+                    tqn.cuda()
+                    from torch.nn import CrossEntropyLoss
+                    from math import sqrt
+                    #print(type(tqn.parameters()))
+                    optimizer = build_optimizer(chain(tqn.parameters(),net.parameters()),self.cfg.tqn_train.tqn_optimizer,sqrt(round_idx))
+                    criterion4decoder = CrossEntropyLoss().cuda()
+                    criterion4encoder = CrossEntropyLoss().cuda()
+                    #criterion4encoder=self.algorithm.similarity
+                    #optimizer4encoder=build_optimizer(net,self.cfg.train.optimizer,round_idx)
+                    for epoch in range(self.training_epochs):
+                        net.train()
+                        tqn.train()
+                        #interior train
+                        loss=0
+                        tot=0
+                        angle=[]
+                        num_classes = len(class_array[client_idx])
+                        for batch_idx, (batch_x, batch_y) in tqdm(enumerate(this_train_dl)):
+                            transform_train = transforms.Compose([
+                                    normalize
+                                ])
+                            batch_x.requires_grad = False
+                            batch_y.requires_grad = False
+                            N=batch_y.shape[0]
+                            local_y_raw = torch.asarray([class2idx[batch_y[i].item()] for i in range(N)])
+                            local_y = torch.nn.functional.one_hot(
+                                torch.nn.functional.one_hot(local_y_raw, num_classes=num_classes)).float()
+                            local_y.requires_grad = False
+                            batch_x = batch_x.cuda()
+                            batch_x = transform_train(batch_x)
+                            batch_x = batch_x.detach().cuda()
+                            batch_y = batch_y.cuda()
+                            local_y = local_y.cuda()
+                            label2repre = label2repre.float().detach().cuda()
+                            local_label2repre = local_repre[client_idx].float().detach().cuda()
+                            #optimizer4encoder.zero_grad()
+                            optimizer.zero_grad()
+                            features = net.forward_with_feature(batch_x)[1]
+                            bloss = criterion4encoder(net.logit_scale.exp()*features@label2repre.t(), batch_y)
+                            loss+=bloss.item()
+                            features = features.unsqueeze(1)
+                            mu = self.cfg.tqn_train.mu
+                            out = tqn(features, local_label2repre)##magic_num 1
+                            # logger.info(out.shape)
+                            # logger.info(local_y.shape)
+                            bloss = mu*bloss+criterion4decoder(out,local_y)
+                            bloss.backward()
+                            optimizer.step()
+                            tot+=batch_y.shape[0]
+                        logger.info(loss/tot)
+                        logger.info(sum(angle)/tot)
+                        net.eval()
+                        tqn.eval()
+                        #interior train acc
+                        true_labels_list, pred_labels_list = np.array([]), np.array([])
+                        loss_collector = []
+                        for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
+                            transform_train = transforms.Compose([
+                                    normalize
+                                ])
+                            with torch.no_grad():
                                 batch_x = batch_x.cuda()
                                 batch_x = transform_train(batch_x)
                                 N=batch_y.shape[0]
-                                batch_x = batch_x.detach().cuda()
-                                batch_y = batch_y.cuda()
-                                label2repre = label2repre.float().detach().cuda()
-                                #optimizer4encoder.zero_grad()
-                                optimizer.zero_grad()
-                                features = net.forward_with_feature(batch_x)[1]
-                                bloss, bangle = criterion4encoder(features, label2repre.clone(), batch_y, flag=loss_type,tau=self.cfg.tqn_train.tau,norm=False)
-                                loss+=bloss.item()
-                                bloss.backward()
-                                optimizer.step()
-                                angle+=bangle
-                                tot+=batch_y.shape[0]
-                            logger.info(loss/tot)
-                            logger.info(sum(angle)/tot)
-                for round_idx in range(self.cfg.federate.total_round_num):
-                    logger.info(f"##########tqn Round #{round_idx} ################")
-                    for client_idx in client_list:
-                        logger.info(f"--------------client #{client_idx}------------------\n"
-                                    f"             decoder train start!")
-                        if(self.cfg.data.load_all_dataset):
-                            this_train_dl=self.client_manager.clients[client_idx].train_dl
-                            this_test_dl=self.client_manager.clients[client_idx].test_dl
-                        else:
-                            this_train_ds,this_train_dl,this_test_ds,this_test_dl=\
-                                self.client_manager.create_one_dataset(self.client_manager.clients[client_idx],\
-                                    train_batchsize=self.cfg.train.batchsize,\
-                                    test_batchsize=self.cfg.eval.batchsize,num_workers=8)
-                        net=self.client_manager.clients[client_idx].net
-                        tqn=self.algorithm.tqn[client_idx]
-                        net.cuda()
-                        tqn.cuda()
-                        from torch.nn import CrossEntropyLoss
-                        #print(type(tqn.parameters()))
-                        optimizer = build_optimizer(chain(net.parameters(),tqn.parameters()),self.cfg.tqn_train.tqn_optimizer,round_idx)
-                        criterion4decoder = CrossEntropyLoss().cuda()
-                        criterion4encoder=self.algorithm.similarity
-                        #optimizer4encoder=build_optimizer(net,self.cfg.train.optimizer,round_idx)
-                        for epoch in range(self.training_epochs):
-                            # net.train()
-                            net.train()
-                            tqn.train()
-                            loss=0
-                            tot=0
-                            angle=[]
-                            for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
-                                transform_train = transforms.Compose([
-                                        normalize
-                                    ])
-                                batch_x.requires_grad = False
-                                batch_y.requires_grad = False
+                                local_y_raw = torch.asarray([class2idx[batch_y[i].item()] for i in range(N)])
+                                local_y = torch.nn.functional.one_hot(torch.nn.functional.one_hot(local_y_raw, num_classes=num_classes)).float()
+                                local_y.requires_grad = False
                                 batch_x = batch_x.cuda()
-                                batch_x = transform_train(batch_x)
-                                N=batch_y.shape[0]
-                                batch_x = batch_x.detach().cuda()
                                 batch_y = batch_y.cuda()
-                                label2repre = label2repre.float().detach().cuda()
-                                #optimizer4encoder.zero_grad()
-                                optimizer.zero_grad()
+                                local_y = local_y.cuda()
+                                label2repre = label2repre.float().cuda()
+                                local_label2repre = local_repre[client_idx].float().detach().cuda()
                                 features = net.forward_with_feature(batch_x)[1]
-                                # bloss, bangle = criterion4encoder(features.clone(), label2repre.clone(), batch_y, flag=loss_type,tau=self.cfg.tqn_train.tau,norm=False)
-                                # loss+=bloss.item()
-                                #features = features.unsqueeze(1).detach().cuda()
                                 features = features.unsqueeze(1)
-                                mu = self.cfg.tqn_train.mu
-                                # if round_idx>=25:
-                                #     mu = 0
-                                    # features=features.detach()
-                                out = tqn(features, label2repre)##magic_num 1
-                                #bloss = mu/decay_round*min(round_idx,decay_round)*bloss+criterion4decoder(out,batch_y)
-                                bloss = criterion4decoder(out,batch_y)
-                                bloss.backward()
-                                optimizer.step()
-                                # angle+=bangle
-                                tot+=batch_y.shape[0]
-                            # logger.info(sum(angle)/tot)
-                            net.eval()
-                            tqn.eval()
-                            true_labels_list, pred_labels_list = np.array([]), np.array([])
-                            loss_collector = []
-                            for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
-                                
-            
-                                transform_train = transforms.Compose([
-                                        normalize
-                                    ])
-                                with torch.no_grad():
-                                    batch_x = batch_x.cuda()
-                                    batch_x = transform_train(batch_x)
-                                    N=batch_y.shape[0]
-                                    batch_x = batch_x.cuda()
-                                    batch_y = batch_y.cuda()
-                                    label2repre = label2repre.float().cuda()
-                                    features = net.forward_with_feature(batch_x)[1]
-                                    features = features.unsqueeze(1)
-                                    out = tqn(features, label2repre)##magic_num 1
-                                    _, pred_label = torch.max(out.data, 1)
-                                    loss = criterion4decoder(out,batch_y)
-                                    loss_collector.append(loss.item())
-                                    pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
-                                    true_labels_list = np.append(true_labels_list, batch_y.data.cpu().numpy())
-                            loss = sum(loss_collector) / len(true_labels_list)
-                            acc=accuracy_score(true_labels_list,pred_labels_list)
-                            logger.info(f"--------------client #{client_idx}------------------")
-                            logger.info(f"train acc:{acc} train loss:{loss}")
-                            true_labels_list, pred_labels_list = np.array([]), np.array([])
-                            loss_collector = []
-                            for batch_idx, (batch_x, batch_y) in enumerate(this_test_dl):
-                                
-            
-                                transform_train = transforms.Compose([
-                                        normalize
-                                    ])
-                                with torch.no_grad():
-                                    batch_x = batch_x.cuda()
-                                    batch_x = transform_train(batch_x)
-                                    N=batch_y.shape[0]
-                                    batch_x = batch_x.cuda()
-                                    batch_y = batch_y.cuda()
-                                    label2repre = label2repre.float().cuda()
-                                    features = net.forward_with_feature(batch_x)[1]
-                                    features = features.unsqueeze(1)
-                                    out = tqn(features, label2repre)##magic_num 1
-                                    _, pred_label = torch.max(out.data, 1)
-                                    loss = criterion4decoder(out,batch_y)
-                                    loss_collector.append(loss.item())
-                                    pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
-                                    true_labels_list = np.append(true_labels_list, batch_y.data.cpu().numpy())
-                            loss = sum(loss_collector) / len(true_labels_list)
-                            acc=accuracy_score(true_labels_list,pred_labels_list)
-                            logger.info(f"test acc:{acc} test loss:{loss}")            
-                            
-            else:
-                for round_idx in range(self.cfg.tqn_train.key_train_round):
-                    logger.info(f"##########Round #{round_idx} ################")
-                    for client_idx in client_list:
-                        logger.info(f"--------------client #{client_idx}------------------\n"
-                                    f"              train start!")
-                        if(self.cfg.data.load_all_dataset):
-                            this_train_dl=self.client_manager.clients[client_idx].train_dl
-                            this_test_dl=self.client_manager.clients[client_idx].test_dl
-                        else:
-                            this_train_ds,this_train_dl,this_test_ds,this_test_dl=\
-                                self.client_manager.create_one_dataset(self.client_manager.clients[client_idx],\
-                                    train_batchsize=self.cfg.train.batchsize,\
-                                    test_batchsize=self.cfg.eval.batchsize,num_workers=8)
-                        net=self.client_manager.clients[client_idx].net
-                        tqn=self.algorithm.tqn[client_idx]
-                        net.cuda()
-                        tqn.cuda()
-                        from torch.nn import CrossEntropyLoss
-                        #print(type(tqn.parameters()))
-                        optimizer = build_optimizer(chain(tqn.parameters(),net.parameters()),self.cfg.tqn_train.tqn_optimizer,round_idx)
-                        criterion4decoder = CrossEntropyLoss().cuda()
-                        criterion4encoder=self.algorithm.similarity
-                        #optimizer4encoder=build_optimizer(net,self.cfg.train.optimizer,round_idx)
-                        for epoch in range(self.training_epochs):
-                            net.train()
-                            tqn.train()
-                            loss=0
-                            tot=0
-                            angle=[]
-                            for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
-                                
-            
-                                transform_train = transforms.Compose([
-                                        normalize
-                                    ])
-                                batch_x.requires_grad = False
-                                batch_y.requires_grad = False
+                                out = tqn(features, local_label2repre)##magic_num 1
+                                _, pred_label = torch.max(torch.squeeze(out[:,:,1]), -1)
+                                loss = criterion4decoder(out,local_y)
+                                loss_collector.append(loss.item())
+                                pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
+                                true_labels_list = np.append(true_labels_list, local_y_raw.cpu().numpy())
+                        loss = sum(loss_collector) / len(true_labels_list)
+                        acc=accuracy_score(true_labels_list,pred_labels_list)
+                        logger.info(f"--------------client #{client_idx}------------------")
+                        logger.info(f"train acc:{acc} train loss:{loss}")
+                        # interior test acc
+                        true_labels_list, pred_labels_list = np.array([]), np.array([])
+                        loss_collector = []
+                        for batch_idx, (batch_x, batch_y) in enumerate(this_test_dl):
+                            transform_train = transforms.Compose([
+                                    normalize
+                                ])
+                            with torch.no_grad():
                                 batch_x = batch_x.cuda()
                                 batch_x = transform_train(batch_x)
                                 N=batch_y.shape[0]
-                                batch_x = batch_x.detach().cuda()
+                                local_y_raw = torch.asarray([class2idx[batch_y[i].item()] for i in range(N)])
+                                local_y = torch.nn.functional.one_hot(torch.nn.functional.one_hot(local_y_raw, num_classes=num_classes)).float()
+                                local_y.requires_grad = False
+                                batch_x = batch_x.cuda()
                                 batch_y = batch_y.cuda()
-                                label2repre = label2repre.float().detach().cuda()
-                                #optimizer4encoder.zero_grad()
-                                optimizer.zero_grad()
+                                local_y = local_y.cuda()
+                                label2repre = label2repre.float().cuda()
+                                local_label2repre = local_repre[client_idx].float().detach().cuda()
                                 features = net.forward_with_feature(batch_x)[1]
-                                bloss, bangle = criterion4encoder(features.clone(), label2repre.clone(), batch_y, flag=loss_type,tau=self.cfg.tqn_train.tau,norm=False)
-                                loss+=bloss.item()
                                 features = features.unsqueeze(1)
-                                mu = self.cfg.tqn_train.mu
-                                # if round_idx>=25:
-                                #     mu = 0
-                                    # features=features.detach()
-                                out = tqn(features, label2repre)##magic_num 1
-                                #bloss = mu/decay_round*min(round_idx,decay_round)*bloss+criterion4decoder(out,batch_y)
-                                bloss = mu*bloss+criterion4decoder(out,batch_y)
-                                bloss.backward()
-                                optimizer.step()
-                                angle+=bangle
-                                tot+=batch_y.shape[0]
-                            logger.info(loss/tot)
-                            logger.info(sum(angle)/tot)
-                            net.eval()
-                            tqn.eval()
-                            true_labels_list, pred_labels_list = np.array([]), np.array([])
-                            loss_collector = []
-                            for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
-                                
-            
-                                transform_train = transforms.Compose([
-                                        normalize
-                                    ])
-                                with torch.no_grad():
-                                    batch_x = batch_x.cuda()
-                                    batch_x = transform_train(batch_x)
-                                    N=batch_y.shape[0]
-                                    batch_x = batch_x.cuda()
-                                    batch_y = batch_y.cuda()
-                                    label2repre = label2repre.float().cuda()
-                                    features = net.forward_with_feature(batch_x)[1]
-                                    features = features.unsqueeze(1)
-                                    out = tqn(features, label2repre)##magic_num 1
-                                    _, pred_label = torch.max(out.data, 1)
-                                    loss = criterion4decoder(out,batch_y)
-                                    loss_collector.append(loss.item())
-                                    pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
-                                    true_labels_list = np.append(true_labels_list, batch_y.data.cpu().numpy())
-                            loss = sum(loss_collector) / len(true_labels_list)
-                            acc=accuracy_score(true_labels_list,pred_labels_list)
-                            logger.info(f"--------------client #{client_idx}------------------")
-                            logger.info(f"train acc:{acc} train loss:{loss}")
-                            true_labels_list, pred_labels_list = np.array([]), np.array([])
-                            loss_collector = []
+                                out = tqn(features, local_label2repre)##magic_num 1
+                                _, pred_label = torch.max(torch.squeeze(out[:,:,1]), -1)
+                                loss = criterion4decoder(out,local_y)
+                                loss_collector.append(loss.item())
+                                pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
+                                true_labels_list = np.append(true_labels_list, local_y_raw.cpu().numpy())
+                        loss = sum(loss_collector) / len(true_labels_list)
+                        acc=accuracy_score(true_labels_list,pred_labels_list)
+                        logger.info(f"test acc:{acc} test loss:{loss}")
+                        # outerior test acc
+                        true_labels_list, pred_labels_list = np.array([]), np.array([])
+                        loss_collector = []
+                        for i in client_list:
+                            if i == client_idx:
+                                continue
+                            this_test_ds,this_test_dl=\
+                            self.client_manager.create_one_dataset_test(self.client_manager.clients[i],\
+                                train_batchsize=self.cfg.train.batchsize,\
+                                test_batchsize=self.cfg.eval.batchsize,num_workers=8)
                             for batch_idx, (batch_x, batch_y) in enumerate(this_test_dl):
-                                
-            
                                 transform_train = transforms.Compose([
                                         normalize
                                     ])
@@ -688,14 +575,27 @@ class Algorithm_Manager():
                                     features = net.forward_with_feature(batch_x)[1]
                                     features = features.unsqueeze(1)
                                     out = tqn(features, label2repre)##magic_num 1
-                                    _, pred_label = torch.max(out.data, 1)
+                                    _, pred_label = torch.max(torch.squeeze(out[:,:,1]), -1)
                                     loss = criterion4decoder(out,batch_y)
                                     loss_collector.append(loss.item())
                                     pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
                                     true_labels_list = np.append(true_labels_list, batch_y.data.cpu().numpy())
-                            loss = sum(loss_collector) / len(true_labels_list)
-                            acc=accuracy_score(true_labels_list,pred_labels_list)
-                            logger.info(f"test acc:{acc} test loss:{loss}")
+                        loss = sum(loss_collector) / len(true_labels_list)
+                        acc=accuracy_score(true_labels_list,pred_labels_list)
+                        logger.info(f"out test acc:{acc} out test loss:{loss}")
+                    tqn.to("cpu")
+                # parameter aggregation 
+                global_para = self.algorithm.tqn[0].state_dict()
+                for key in global_para:
+                    global_para[key] = global_para[key] * weights[0]/sum(weights)
+                for idx in range(1,self.client_manager.n_clients):
+                    net_para = self.algorithm.tqn[idx].state_dict()
+                    weight = weights[idx] / sum(weights)                       
+                    for key in net_para:
+                        global_para[key] += net_para[key] * weight
+                for idx in range(self.client_manager.n_clients):
+                    self.algorithm.tqn[idx].load_state_dict(global_para)
+                    
 
     def run_colla_train_vit_head(self):
         import torchvision.transforms as transforms
@@ -711,281 +611,121 @@ class Algorithm_Manager():
             label2repre=self.server.net.encode_text(label2token)
             label2repre=label2repre/label2repre.norm(dim=1,keepdim=True)
             dump_path="/mnt/workspace/lisiyi/result/backbone.pt"
-            client_list=[0]
+            # client_list=[0]
             decay_round=10
             loss_type="KADpro"
-            normalize = transforms.Normalize((0.485, 0.456, 0.406),
-                                  (0.229, 0.224, 0.225))
+            normalize = get_mean_std(dataset_name)
             norm=False
             split_train = False
-            if split_train:
-                for round_idx in range(self.cfg.tqn_train.key_train_round):
-                    logger.info(f"##########Vit Round #{round_idx} ################")
-                    for client_idx in client_list:
-                        logger.info(f"--------------client #{client_idx}------------------\n"
-                                    f"               encoder train start!")
-                        if(self.cfg.data.load_all_dataset):
-                            this_train_dl=self.client_manager.clients[client_idx].train_dl
-                            this_test_dl=self.client_manager.clients[client_idx].test_dl
-                        else:
-                            this_train_ds,this_train_dl,this_test_ds,this_test_dl=\
-                                self.client_manager.create_one_dataset(self.client_manager.clients[client_idx],\
-                                    train_batchsize=self.cfg.train.batchsize,\
-                                    test_batchsize=self.cfg.eval.batchsize,num_workers=8)
-                        net=self.client_manager.clients[client_idx].net
-                        net.cuda()
-                        from torch.nn import CrossEntropyLoss
-                        optimizer = build_optimizer(chain(net.parameters(),label_layer.parameters()),self.cfg.train.optimizer,round_idx)
-                        criterion4decoder = CrossEntropyLoss().cuda()
-                        criterion4encoder=self.algorithm.similarity
-                        for epoch in range(self.training_epochs):
-                            net.train()
-                            loss=0
-                            tot=0
-                            angle=[]
-                            for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
-                                
-                                transform_train = transforms.Compose([
-                                        normalize
-                                    ])
-                                batch_x.requires_grad = False
-                                batch_y.requires_grad = False
-                                batch_x = batch_x.cuda()
-                                batch_x = transform_train(batch_x)
-                                N=batch_y.shape[0]
-                                batch_x = batch_x.detach().cuda()
-                                batch_y = batch_y.cuda()
-                                label2repre = label2repre.float().detach().cuda()
-                                #optimizer4encoder.zero_grad()
-                                optimizer.zero_grad()
-                                features = net.forward_with_feature(batch_x)[1]
-                                bloss, bangle = criterion4encoder(features, label_layer(label2repre), batch_y, flag=loss_type,
-                                                                  tau=self.cfg.tqn_train.tau, norm=norm)
-                                #logger.info(bloss.item())
-                                loss+=bloss.item()
-                                bloss.backward()
-                                optimizer.step()
-                                angle+=bangle
-                                tot+=batch_y.shape[0]
-                            logger.info(loss/tot)
-                            logger.info(sum(angle)/tot)
-                for round_idx in range(self.cfg.federate.total_round_num):
-                    logger.info(f"##########Head Round #{round_idx} ################")
-                    for client_idx in client_list:
-                        logger.info(f"--------------client #{client_idx}------------------\n"
-                                    f"             decoder train start!")
-                        if(self.cfg.data.load_all_dataset):
-                            this_train_dl=self.client_manager.clients[client_idx].train_dl
-                            this_test_dl=self.client_manager.clients[client_idx].test_dl
-                        else:
-                            this_train_ds,this_train_dl,this_test_ds,this_test_dl=\
-                                self.client_manager.create_one_dataset(self.client_manager.clients[client_idx],\
-                                    train_batchsize=self.cfg.train.batchsize,\
-                                    test_batchsize=self.cfg.eval.batchsize,num_workers=8)
-                        net=self.client_manager.clients[client_idx].net
-                        net.cuda()
-                        from torch.nn import CrossEntropyLoss
-                        optimizer = build_optimizer(net.parameters(),self.cfg.tqn_train.tqn_optimizer,round_idx)
-                        criterion4decoder = CrossEntropyLoss().cuda()
-                        criterion4encoder=self.algorithm.similarity
-                        for epoch in range(self.training_epochs):
-                            #net.eval()
-                            net.eval()
-                            loss=0
-                            tot=0
-                            angle=[]
-                            for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
-                                
-                                transform_train = transforms.Compose([
-                                        normalize
-                                    ])
-                                batch_x.requires_grad = False
-                                batch_y.requires_grad = False
-                                batch_x = batch_x.cuda()
-                                batch_x = transform_train(batch_x)
-                                N=batch_y.shape[0]
-                                batch_x = batch_x.detach().cuda()
-                                batch_y = batch_y.cuda()
-                                label2repre = label2repre.float().detach().cuda()
-                                #optimizer4encoder.zero_grad()
-                                optimizer.zero_grad()
-                                features = net.forward_with_feature(batch_x)[1]
-                                bloss, bangle = criterion4encoder(features.clone(), label_layer(label2repre.clone()), batch_y, flag=loss_type,tau=self.cfg.tqn_train.tau,norm=norm)
-                                #logger.info(bloss.item())
-                                features = features.detach()
-                                out = net.head(features)
-                                mu = self.cfg.tqn_train.mu
-                                # if round_idx>=10:
-                                #     mu = 0
-                                #     # features=features.detach()
-                                bloss = criterion4decoder(out,batch_y)
-                                # bloss=criterion4decoder(out,batch_y)
-                                bloss.backward()
-                                optimizer.step()
-                                angle+=bangle
-                                tot+=batch_y.shape[0]
-                            logger.info(sum(angle)/tot)
-                            net.eval()
-                            true_labels_list, pred_labels_list = np.array([]), np.array([])
-                            loss_collector = []
-                            for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
-                                
             
-                                transform_train = transforms.Compose([
-                                        normalize
-                                    ])
-                                with torch.no_grad():
-                                    batch_x = batch_x.cuda()
-                                    batch_x = transform_train(batch_x)
-                                    N=batch_y.shape[0]
-                                    batch_x = batch_x.cuda()
-                                    batch_y = batch_y.cuda()
-                                    label2repre = label2repre.float().cuda()
-                                    features = net.forward_with_feature(batch_x)[1]
-                                    out = net.head(features)
-                                    _, pred_label = torch.max(out.data, 1)
-                                    loss = criterion4decoder(out,batch_y)
-                                    loss_collector.append(loss.item())
-                                    pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
-                                    true_labels_list = np.append(true_labels_list, batch_y.data.cpu().numpy())
-                            loss = sum(loss_collector) / len(true_labels_list)
-                            acc=accuracy_score(true_labels_list,pred_labels_list)
-                            logger.info(f"--------------client #{client_idx}------------------")
-                            logger.info(f"train acc:{acc} train loss:{loss}")
-                            true_labels_list, pred_labels_list = np.array([]), np.array([])
-                            loss_collector = []
-                            for batch_idx, (batch_x, batch_y) in enumerate(this_test_dl):
-                                transform_train = transforms.Compose([
-                                        normalize
-                                    ])
-                                with torch.no_grad():
-                                    batch_x = batch_x.cuda()
-                                    batch_x = transform_train(batch_x)
-                                    N=batch_y.shape[0]
-                                    batch_x = batch_x.cuda()
-                                    batch_y = batch_y.cuda()
-                                    features = net.forward_with_feature(batch_x)[1]
-                                    out = net.head(features)
-                                    _, pred_label = torch.max(out.data, 1)
-                                    loss = criterion4decoder(out,batch_y)
-                                    loss_collector.append(loss.item())
-                                    pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
-                                    true_labels_list = np.append(true_labels_list, batch_y.data.cpu().numpy())
-                            loss = sum(loss_collector) / len(true_labels_list)
-                            acc=accuracy_score(true_labels_list,pred_labels_list)
-                            logger.info(f"test acc:{acc} test loss:{loss}")            
-            else:
-                """
-                    not split, train together
-                """
-                for round_idx in range(self.cfg.tqn_train.key_train_round):
-                    logger.info(f"##########Round #{round_idx} ################")
-                    for client_idx in client_list:
-                        logger.info(f"--------------client #{client_idx}------------------\n"
-                                    f"             train start!")
-                        if(self.cfg.data.load_all_dataset):
-                            this_train_dl=self.client_manager.clients[client_idx].train_dl
-                            this_test_dl=self.client_manager.clients[client_idx].test_dl
-                        else:
-                            this_train_ds,this_train_dl,this_test_ds,this_test_dl=\
-                                self.client_manager.create_one_dataset(self.client_manager.clients[client_idx],\
-                                    train_batchsize=self.cfg.train.batchsize,\
-                                    test_batchsize=self.cfg.eval.batchsize,num_workers=8)
-                        net=self.client_manager.clients[client_idx].net
-                        net.cuda()
-                        from torch.nn import CrossEntropyLoss
-                        from math import sqrt
-                        optimizer = build_optimizer(net.parameters(),self.cfg.tqn_train.tqn_optimizer,sqrt(round_idx))
-                        criterion4decoder = CrossEntropyLoss().cuda()
-                        criterion4encoder=self.algorithm.similarity
-                        for epoch in range(self.training_epochs):
-                            net.train()
-                            loss=0
-                            tot=0
-                            angle=[]
-                            for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
-                                
-                                transform_train = transforms.Compose([
-                                        normalize
-                                    ])
-                                batch_x.requires_grad = False
-                                batch_y.requires_grad = False
+            for round_idx in range(self.cfg.tqn_train.key_train_round):
+                logger.info(f"##########Round #{round_idx} ################")
+                for client_idx in client_list:
+                    logger.info(f"--------------client #{client_idx}------------------\n"
+                                f"             train start!")
+                    if(self.cfg.data.load_all_dataset):
+                        this_train_dl=self.client_manager.clients[client_idx].train_dl
+                        this_test_dl=self.client_manager.clients[client_idx].test_dl
+                    else:
+                        this_train_ds,this_train_dl,this_test_ds,this_test_dl=\
+                            self.client_manager.create_one_dataset(self.client_manager.clients[client_idx],\
+                                train_batchsize=self.cfg.train.batchsize,\
+                                test_batchsize=self.cfg.eval.batchsize,num_workers=8)
+                    net=self.client_manager.clients[client_idx].net
+                    net.cuda()
+                    from torch.nn import CrossEntropyLoss
+                    from math import sqrt
+                    optimizer = build_optimizer(net.parameters(),self.cfg.tqn_train.tqn_optimizer,sqrt(round_idx))
+                    criterion4decoder = CrossEntropyLoss().cuda()
+                    criterion4encoder=self.algorithm.similarity
+                    for epoch in range(self.training_epochs):
+                        net.train()
+                        loss=0
+                        tot=0
+                        angle=[]
+                        for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
+                            
+                            transform_train = transforms.Compose([
+                                    normalize
+                                ])
+                            batch_x.requires_grad = False
+                            batch_y.requires_grad = False
+                            batch_x = batch_x.cuda()
+                            batch_x = transform_train(batch_x)
+                            N=batch_y.shape[0]
+                            batch_x = batch_x.detach().cuda()
+                            batch_y = batch_y.cuda()
+                            label2repre = label2repre.float().detach().cuda()
+                            #optimizer4encoder.zero_grad()
+                            optimizer.zero_grad()
+                            features = net.forward_with_feature(batch_x)[1]
+                            # bloss, bangle = criterion4encoder(features.clone(), label2repre.clone(), batch_y, flag=loss_type,tau=self.cfg.tqn_train.tau,norm=norm)
+                            # loss+=bloss.item()
+                            # angle+=bangle
+                            # out = net.head(features)
+                            # mu = self.cfg.tqn_train.mu
+                            # # if round_idx>=25:
+                            # #     mu = 0
+                            # if round_idx <0:
+                            #     bloss.backward()
+                            # else:
+                            #     bloss = mu*bloss+criterion4decoder(out,batch_y)
+                            #     bloss.backward()
+                            bloss = criterion4decoder(net.logit_scale.exp()*features@label2repre.t(), batch_y)
+                            loss+=bloss.item()
+                            bloss.backward()
+                            optimizer.step()
+                            tot+=batch_y.shape[0]
+                        logger.info(loss/tot)
+                        logger.info(sum(angle)/tot)
+                        net.eval()
+                        true_labels_list, pred_labels_list = np.array([]), np.array([])
+                        loss_collector = []
+                        for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
+                            
+        
+                            transform_train = transforms.Compose([
+                                    normalize
+                                ])
+                            with torch.no_grad():
                                 batch_x = batch_x.cuda()
                                 batch_x = transform_train(batch_x)
                                 N=batch_y.shape[0]
-                                batch_x = batch_x.detach().cuda()
+                                batch_x = batch_x.cuda()
                                 batch_y = batch_y.cuda()
-                                label2repre = label2repre.float().detach().cuda()
-                                #optimizer4encoder.zero_grad()
-                                optimizer.zero_grad()
+                                label2repre = label2repre.float().cuda()
                                 features = net.forward_with_feature(batch_x)[1]
-                                # bloss, bangle = criterion4encoder(features.clone(), label2repre.clone(), batch_y, flag=loss_type,tau=self.cfg.tqn_train.tau,norm=norm)
-                                # loss+=bloss.item()
-                                # angle+=bangle
                                 # out = net.head(features)
-                                # mu = self.cfg.tqn_train.mu
-                                # # if round_idx>=25:
-                                # #     mu = 0
-                                # if round_idx <0:
-                                #     bloss.backward()
-                                # else:
-                                #     bloss = mu*bloss+criterion4decoder(out,batch_y)
-                                #     bloss.backward()
-                                bloss = criterion4decoder(net.logit_scale.exp()*features@label2repre.t(), batch_y)
-                                loss+=bloss.item()
-                                bloss.backward()
-                                optimizer.step()
-                                tot+=batch_y.shape[0]
-                            logger.info(loss/tot)
-                            logger.info(sum(angle)/tot)
-                            net.eval()
-                            true_labels_list, pred_labels_list = np.array([]), np.array([])
-                            loss_collector = []
-                            for batch_idx, (batch_x, batch_y) in enumerate(this_train_dl):
-                                
-            
-                                transform_train = transforms.Compose([
-                                        normalize
-                                    ])
-                                with torch.no_grad():
-                                    batch_x = batch_x.cuda()
-                                    batch_x = transform_train(batch_x)
-                                    N=batch_y.shape[0]
-                                    batch_x = batch_x.cuda()
-                                    batch_y = batch_y.cuda()
-                                    label2repre = label2repre.float().cuda()
-                                    features = net.forward_with_feature(batch_x)[1]
-                                    # out = net.head(features)
-                                    out = net.logit_scale.exp()*features@label2repre.t()
-                                    _, pred_label = torch.max(out.data, 1)
-                                    loss = criterion4decoder(out,batch_y)
-                                    loss_collector.append(loss.item())
-                                    pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
-                                    true_labels_list = np.append(true_labels_list, batch_y.data.cpu().numpy())
-                            loss = sum(loss_collector) / len(true_labels_list)
-                            acc=accuracy_score(true_labels_list,pred_labels_list)
-                            logger.info(f"--------------client #{client_idx}------------------")
-                            logger.info(f"train acc:{acc} train loss:{loss}")
-                            true_labels_list, pred_labels_list = np.array([]), np.array([])
-                            loss_collector = []
-                            for batch_idx, (batch_x, batch_y) in enumerate(this_test_dl):
-                                transform_train = transforms.Compose([
-                                        normalize
-                                    ])
-                                with torch.no_grad():
-                                    batch_x = batch_x.cuda()
-                                    batch_x = transform_train(batch_x)
-                                    N=batch_y.shape[0]
-                                    batch_x = batch_x.cuda()
-                                    batch_y = batch_y.cuda()
-                                    features = net.forward_with_feature(batch_x)[1]
-                                    # out = net.head(features)
-                                    out = net.logit_scale.exp()*features@label2repre.t()
-                                    _, pred_label = torch.max(out.data, 1)
-                                    loss = criterion4decoder(out,batch_y)
-                                    loss_collector.append(loss.item())
-                                    pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
-                                    true_labels_list = np.append(true_labels_list, batch_y.data.cpu().numpy())
-                            loss = sum(loss_collector) / len(true_labels_list)
-                            acc=accuracy_score(true_labels_list,pred_labels_list)
-                            logger.info(f"test acc:{acc} test loss:{loss}")
+                                out = net.logit_scale.exp()*features@label2repre.t()
+                                _, pred_label = torch.max(out.data, 1)
+                                loss = criterion4decoder(out,batch_y)
+                                loss_collector.append(loss.item())
+                                pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
+                                true_labels_list = np.append(true_labels_list, batch_y.data.cpu().numpy())
+                        loss = sum(loss_collector) / len(true_labels_list)
+                        acc=accuracy_score(true_labels_list,pred_labels_list)
+                        logger.info(f"--------------client #{client_idx}------------------")
+                        logger.info(f"train acc:{acc} train loss:{loss}")
+                        true_labels_list, pred_labels_list = np.array([]), np.array([])
+                        loss_collector = []
+                        for batch_idx, (batch_x, batch_y) in enumerate(this_test_dl):
+                            transform_train = transforms.Compose([
+                                    normalize
+                                ])
+                            with torch.no_grad():
+                                batch_x = batch_x.cuda()
+                                batch_x = transform_train(batch_x)
+                                N=batch_y.shape[0]
+                                batch_x = batch_x.cuda()
+                                batch_y = batch_y.cuda()
+                                features = net.forward_with_feature(batch_x)[1]
+                                # out = net.head(features)
+                                out = net.logit_scale.exp()*features@label2repre.t()
+                                _, pred_label = torch.max(out.data, 1)
+                                loss = criterion4decoder(out,batch_y)
+                                loss_collector.append(loss.item())
+                                pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
+                                true_labels_list = np.append(true_labels_list, batch_y.data.cpu().numpy())
+                        loss = sum(loss_collector) / len(true_labels_list)
+                        acc=accuracy_score(true_labels_list,pred_labels_list)
+                        logger.info(f"test acc:{acc} test loss:{loss}")

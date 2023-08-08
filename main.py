@@ -135,7 +135,8 @@ if __name__=="__main__":
     client_manager.create_all_models()
     for i in range(init_cfg.federate.client_num):
         print(len(client_manager.clients[i].train_ds))
-
+    from collaboFM.auxiliaries.utils import calculate_normalization
+    # calculate_normalization(init_cfg, client_manager)
     algorithm_manager=Algorithm_Manager(init_cfg,client_manager)
     algorithm_manager.simulation()
 

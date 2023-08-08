@@ -7,9 +7,10 @@ import logging
 logger=logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+from collaboFM.data.dataset import get_mean_std
 
-normalize = transforms.Normalize((0.485, 0.456, 0.406),
-                                  (0.229, 0.224, 0.225))
+
+
 class local_baseline():
     def __init__(self,control_config):
         self.cfg=control_config
@@ -18,6 +19,7 @@ class local_baseline():
         self.n_rounds=self.cfg.federate.total_round_num
         self.epochs=self.cfg.train.local_update_steps
         self.global_para={}
+        self.normalize = get_mean_std(self.cfg.data.dataset)
 
 
     def update_client_iter(self,net,net_id,batch_x,batch_y,criterion,optimizer):
@@ -25,7 +27,7 @@ class local_baseline():
         
         
         transform_train = transforms.Compose([
-                normalize
+                self.normalize
             ])
         batch_x=transform_train(batch_x)
 
@@ -45,7 +47,7 @@ class local_baseline():
         
     def evaluate(self,net,dataloader,criterion):
         transform_test = transforms.Compose([
-                normalize
+                self.normalize
             ])
         #net=client.net
         

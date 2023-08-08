@@ -3,6 +3,7 @@ from PIL import Image
 import numpy as np
 import torch
 from torchvision.transforms.functional import to_tensor
+from torchvision import transforms
 class dataset_base(data.Dataset):#需要继承data.Dataset
     def __init__(self,data_x,data_y):
         self.raw_data_x=data_x
@@ -23,3 +24,19 @@ class dataset_base(data.Dataset):#需要继承data.Dataset
     def __len__(self):
         return len(self.raw_data_x)
 
+normalize4caltech = transforms.Normalize((0.485, 0.456, 0.406),
+                                        (0.229, 0.224, 0.225))
+normalize4caltech_new = transforms.Normalize((0.5477,0.5305,0.5034),
+                                         (0.3151,0.3095,0.3225))
+normalize4cifar10 = transforms.Normalize((0.4914,0.4822,0.4465),
+                                         (0.2470,0.2435,0.2615))           
+normalize4food = transforms.Normalize((0.5450, 0.4435, 0.3436),
+                                      (0.2709, 0.2735, 0.2781))
+# normalize4food = transforms.Normalize()
+def get_mean_std(dataset):
+    if dataset == "cifar10":
+        return normalize4cifar10
+    elif dataset == "caltech101":
+        return normalize4caltech
+    elif dataset == "food101":
+        return normalize4food

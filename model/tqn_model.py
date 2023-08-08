@@ -175,7 +175,7 @@ class TQN_Model(nn.Module):
         self.dropout_feas = nn.Dropout(0.1)
 
         self.mlp_head = nn.Sequential( # nn.LayerNorm(768),
-            nn.Linear(embed_dim*class_num, class_num)
+            nn.Linear(embed_dim, class_num)
         )
         self.apply(self._init_weights)
     
@@ -212,7 +212,7 @@ class TQN_Model(nn.Module):
         #logger.debug(features)
         features = self.dropout_feas(features).transpose(0,1)  #b,embed_dim
         #logger.debug(features)
-        features=torch.flatten(features,start_dim=1)
+        
         out = self.mlp_head(features)  #(batch_size, query_num)
         return out
 

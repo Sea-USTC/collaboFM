@@ -198,11 +198,14 @@ def build_data(cfg,data_name):
     return train_x,train_y,test_x,test_y
 
 
-def build_split(y_train,y_test,cfg,n_clients):
+def build_split(y_train,y_test,cfg,n_clients,class_dict):
     if cfg.data.splitter=="dirichlet":
-        return split_dirichlet(y_train,y_test,n_clients=n_clients,beta=cfg.data.splitter_args[0]["beta"])
+        return split_dirichlet(y_train,y_test,n_clients=n_clients,beta=cfg.data.splitter_args[1])
     elif cfg.data.splitter=="class":
-        return split_class(y_train,y_test,n_clients=n_clients,n_class=cfg.n_class)
+        return split_class(y_train,y_test,n_clients=n_clients,n_class=cfg.data.splitter_args[3],
+                           beta=cfg.data.splitter_args[5])
+    elif cfg.data.splitter == "non_overlap":
+        return split_non_overlap(y_train, y_test, n_class=cfg.client_resource.head_para_list['0'][3],class_list=cfg.data.splitter_args[6], class_dict=class_dict)
 
 
 def build_multi_task(dataset_list=["cifar10","cifar100","mnist"],model_list=["lenet","resnet18","simple-cnn"],n_client=3,split_mode_dict={"type":"dirichlet","beta":0.5}):

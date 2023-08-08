@@ -18,7 +18,7 @@ class collabo():
         self.clients_per_round=self.cfg.federate.sample_client_num
         self.n_rounds=self.cfg.federate.total_round_num
         self.epochs=self.cfg.train.local_update_steps
-        self.tqn=[TQN_Model(embed_dim=512, class_num=self.cfg.client_resource.head_para_list["0"][3]) for i in range(self.n_clients)]
+        self.tqn=[TQN_Model(embed_dim=512, class_num=2) for i in range(self.n_clients)]
 
 
     def update_client_iter(self,net,net_id,batch_x,batch_y,criterion,optimizer,label2repre):
@@ -50,7 +50,7 @@ class collabo():
         optimizer.step()
         return N, loss, angle
 
-    def similarity(self, out, label2repre,target,flag="cluster", tau=20,norm=True):
+    def similarity(self, out, label2repre,target,flag="cluster", tau=20,norm=False):
         loss=torch.tensor([0.0]).cuda()
         angle=[]
         if norm:
