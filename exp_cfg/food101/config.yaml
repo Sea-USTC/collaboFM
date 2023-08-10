@@ -1,0 +1,151 @@
+cfg_file: ''
+criterion:
+  type: cross_entropy
+data:
+  args: []
+  dataset: food101
+  file_path: ''
+  load_all_dataset: False
+  root: /mnt/workspace/colla_group/data/
+  save_data: false
+  splitter: 'non_overlap'
+  splitter_args: ['beta', 0.1, 'n_class', 40, 'alpha', 0.1, [60, 30, 11]]
+  target_transform: []
+  test_pre_transform: []
+  test_target_transform: []
+  test_transform: []
+  transform: []
+  val_pre_transform: []
+  val_target_transform: []
+  val_transform: []
+device: 0
+eval:
+  batchsize: 64
+  freq: 1
+expname: "food101"
+expname_tag: ' '
+federate:
+  client_num: 3
+  generic_fl_eval: false
+  method: collabo
+  restore_from: ''
+  sample_client_num: 4
+  sample_mode: random
+  save_to: ''
+  total_round_num: 60
+  use_hetero_model: true
+client_resource:
+  dataset: 
+    "0": food101
+    "1": food101
+    "2": food101
+    "3": food101
+    "4": food101
+    "5": food101
+    "6": food101
+    "7": food101
+    "8": food101
+    "9": food101
+  backbone: 
+    "0": vitbase_16_224
+    "1": vitsmall_16_224
+    "2": vittiny_16_224
+    "3": vittiny_16_224
+    "4": vittiny_16_224
+    "5": vitbase_32_224
+    "6": vitbase_32_224
+    "7": vitbase_32_224
+    "8": vitbase_32_224
+    "9": vitbase_32_224
+  encoder_list:
+    "0": ["linear"]
+    "1": ["linear"]
+    "2": ["linear"]
+    "3": ["linear"]
+    "4": ["linear"]
+    "5": ["linear"]
+    "6": ["linear"]
+    "7": ["linear"]
+    "8": ["linear"]
+    "9": ["linear"]
+  encoder_para_list: 
+    "0": ["in_dim",768,"out_dim",512]
+    "1": ["in_dim",384,"out_dim",512]
+    "2": ["in_dim",192,"out_dim",512]
+    "3": ["in_dim",192,"out_dim",512]
+    "4": ["in_dim",192,"out_dim",512]
+    "5": ["in_dim",768,"out_dim",512]
+    "6": ["in_dim",768,"out_dim",512]
+    "7": ["in_dim",768,"out_dim",512]
+    "8": ["in_dim",768,"out_dim",512]
+    "9": ["in_dim",768,"out_dim",512]
+  head_list:
+    "0": ["linear"]
+    "1": ["linear"]
+    "2": ["linear"]
+    "3": ["linear"]
+    "4": ["linear"]
+    "5": ["linear"]
+    "6": ["linear"]
+    "7": ["linear"]
+    "8": ["linear"]
+    "9": ["linear"]
+  head_para_list: 
+    "0": ["in_dim",512,"out_dim",101]
+    "1": ["in_dim",512,"out_dim",101]
+    "2": ["in_dim",512,"out_dim",101]
+    "3": ["in_dim",512,"out_dim",101]
+    "4": ["in_dim",512,"out_dim",101]
+    "5": ["in_dim",512,"out_dim",101]
+    "6": ["in_dim",512,"out_dim",101]
+    "7": ["in_dim",512,"out_dim",101]
+    "8": ["in_dim",512,"out_dim",101]
+    "9": ["in_dim",512,"out_dim",101]
+fm:
+  use: false
+grad:
+  grad_accum_count: 1
+  grad_clip: -1.0
+gpus: [5]
+model:
+  backbone: ResNet18Cifar10
+  dropout: 0.5
+  encoder_list: ["identity"]
+  encoder_para_list: []
+  head_list: ["linear"]
+  head_para_list: ["in_dim", 512, "out_dim", 10]
+  hidden: 256
+  in_channels: 0
+  input_shape: []
+  out_channels: 1
+  pretrained: False
+outdir: /mnt/workspace/lisiyi/exp_output/food101
+print_decimal_digits: 6
+regularizer:
+  mu: 0.0
+  type: ''
+seed: 0
+tqn_train:
+  key_train_round: 60
+  tqn_optimizer:
+    lr: 0.00005
+    momentum: 0.9
+    type: Adam
+    weight_decay: 0.0
+  tau: 1.0
+  mu: 2
+train:
+  batch_or_epoch: batch
+  batchsize: 64
+  local_update_steps: 1
+  optimizer:
+    lr: 0.00005
+    momentum: 0.9
+    type: Adam
+    weight_decay: 0.0
+  scheduler:
+    type: ''
+    warmup_ratio: 0.0
+use_gpu: True
+verbose: 1
+

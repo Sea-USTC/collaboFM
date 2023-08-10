@@ -28,6 +28,7 @@ class Algorithm_Manager():
             self.init_server_model()
         self.n_clients=self.cfg.federate.client_num
         self.training_epochs=self.cfg.train.local_update_steps
+        self.epoch_list = self.cfg.tqn_train.epoch_list
         self.clients_per_round=self.cfg.federate.sample_client_num
         self.n_rounds=self.cfg.federate.total_round_num
         self.client_selection=self.cfg.federate.sample_mode
@@ -414,13 +415,11 @@ class Algorithm_Manager():
             for client_idx in client_list:
                 class_array[client_idx] = self.client_manager.class_dict[client_idx]
                 # logger.info(type(class_array[client_idx]))
-                local_token =  clip.tokenize([label_name[i] for i in class_array[client_idx]]).cuda()
-                local_repre[client_idx] = self.server.net.encode_text(local_token)
-                local_repre[client_idx] = local_repre[client_idx]/local_repre[client_idx].norm(dim=1,keepdim=True)
+                local_repre[client_idx] = torch.vstack([label2repre[i,] for i in class_array[client_idx]])
             for round_idx in range(self.cfg.tqn_train.key_train_round):
                 logger.info(f"##########Round #{round_idx} ################")
                 for client_idx in client_list:
-                    class2idx = {}
+                    class2idx = {}                
                     for i, j in enumerate(class_array[client_idx]):
                         class2idx[j]=i
                     # logger.info(class2idx.values())
@@ -442,15 +441,16 @@ class Algorithm_Manager():
                     from math import sqrt
                     #print(type(tqn.parameters()))
                     optimizer = build_optimizer(chain(tqn.parameters(),net.parameters()),self.cfg.tqn_train.tqn_optimizer,sqrt(round_idx))
-                    criterion4decoder = CrossEntropyLoss().cuda()
-                    criterion4encoder = CrossEntropyLoss().cuda()
+                    criterion4decoder = CrossEntropyLoss(reduction='sum').cuda()
+                    criterion4encoder = CrossEntropyLoss(reduction='sum').cuda()
                     #criterion4encoder=self.algorithm.similarity
                     #optimizer4encoder=build_optimizer(net,self.cfg.train.optimizer,round_idx)
-                    for epoch in range(self.training_epochs):
+                    for epoch in range(self.epoch_list[client_idx]):
                         net.train()
                         tqn.train()
                         #interior train
-                        loss=0
+                        loss = 0
+                        loss2 = 0 
                         tot=0
                         angle=[]
                         num_classes = len(class_array[client_idx])
@@ -461,7 +461,7 @@ class Algorithm_Manager():
                             batch_x.requires_grad = False
                             batch_y.requires_grad = False
                             N=batch_y.shape[0]
-                            local_y_raw = torch.asarray([class2idx[batch_y[i].item()] for i in range(N)])
+                            local_y_raw = torch.asarray([class2idx[batch_y[i].item()] for i in range(N)]).cuda()
                             local_y = torch.nn.functional.one_hot(
                                 torch.nn.functional.one_hot(local_y_raw, num_classes=num_classes)).float()
                             local_y.requires_grad = False
@@ -476,18 +476,24 @@ class Algorithm_Manager():
                             optimizer.zero_grad()
                             features = net.forward_with_feature(batch_x)[1]
                             bloss = criterion4encoder(net.logit_scale.exp()*features@label2repre.t(), batch_y)
+                            # logger.info(local_y_raw)
+                            # logger.info(batch_y)
                             loss+=bloss.item()
                             features = features.unsqueeze(1)
                             mu = self.cfg.tqn_train.mu
                             out = tqn(features, local_label2repre)##magic_num 1
                             # logger.info(out.shape)
                             # logger.info(local_y.shape)
-                            bloss = mu*bloss+criterion4decoder(out,local_y)
+                            # if round_idx>=5:
+                            tqn_loss = - (torch.log_softmax(out,dim=-1)*local_y).flatten(0).sum()/num_classes
+                            loss2+=tqn_loss.item()
+                            bloss = mu*bloss + tqn_loss
                             bloss.backward()
                             optimizer.step()
                             tot+=batch_y.shape[0]
                         logger.info(loss/tot)
-                        logger.info(sum(angle)/tot)
+                        logger.info(loss2/tot)
+                        # logger.info(sum(angle)/tot)
                         net.eval()
                         tqn.eval()
                         #interior train acc
@@ -513,7 +519,9 @@ class Algorithm_Manager():
                                 features = features.unsqueeze(1)
                                 out = tqn(features, local_label2repre)##magic_num 1
                                 _, pred_label = torch.max(torch.squeeze(out[:,:,1]), -1)
-                                loss = criterion4decoder(out,local_y)
+                                loss = - (torch.log_softmax(out,dim=-1)*local_y).flatten(0).sum()/num_classes
+                                # logger.info(criterion4decoder(out, local_y).item()/num_classes)
+                                # logger.info(loss.item())
                                 loss_collector.append(loss.item())
                                 pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
                                 true_labels_list = np.append(true_labels_list, local_y_raw.cpu().numpy())
@@ -544,7 +552,7 @@ class Algorithm_Manager():
                                 features = features.unsqueeze(1)
                                 out = tqn(features, local_label2repre)##magic_num 1
                                 _, pred_label = torch.max(torch.squeeze(out[:,:,1]), -1)
-                                loss = criterion4decoder(out,local_y)
+                                loss = - (torch.log_softmax(out,dim=-1)*local_y).flatten(0).sum()/num_classes
                                 loss_collector.append(loss.item())
                                 pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
                                 true_labels_list = np.append(true_labels_list, local_y_raw.cpu().numpy())
@@ -557,11 +565,11 @@ class Algorithm_Manager():
                         for i in client_list:
                             if i == client_idx:
                                 continue
-                            this_test_ds,this_test_dl=\
+                            _, all_test_dl=\
                             self.client_manager.create_one_dataset_test(self.client_manager.clients[i],\
                                 train_batchsize=self.cfg.train.batchsize,\
                                 test_batchsize=self.cfg.eval.batchsize,num_workers=8)
-                            for batch_idx, (batch_x, batch_y) in enumerate(this_test_dl):
+                            for batch_idx, (batch_x, batch_y) in enumerate(all_test_dl):
                                 transform_train = transforms.Compose([
                                         normalize
                                     ])
@@ -571,16 +579,20 @@ class Algorithm_Manager():
                                     N=batch_y.shape[0]
                                     batch_x = batch_x.cuda()
                                     batch_y = batch_y.cuda()
+                                    batch_y_bce = torch.nn.functional.one_hot(
+                                        torch.nn.functional.one_hot(batch_y,num_classes=label2repre.shape[0])).float()
                                     label2repre = label2repre.float().cuda()
                                     features = net.forward_with_feature(batch_x)[1]
                                     features = features.unsqueeze(1)
                                     out = tqn(features, label2repre)##magic_num 1
                                     _, pred_label = torch.max(torch.squeeze(out[:,:,1]), -1)
-                                    loss = criterion4decoder(out,batch_y)
+                                    loss = - (torch.log_softmax(out,dim=-1)*batch_y_bce).flatten(0).sum()/label2repre.shape[0]
                                     loss_collector.append(loss.item())
                                     pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
                                     true_labels_list = np.append(true_labels_list, batch_y.data.cpu().numpy())
+                            # logger.info(len(true_labels_list))
                         loss = sum(loss_collector) / len(true_labels_list)
+                        logger.info(len(true_labels_list))
                         acc=accuracy_score(true_labels_list,pred_labels_list)
                         logger.info(f"out test acc:{acc} out test loss:{loss}")
                     tqn.to("cpu")

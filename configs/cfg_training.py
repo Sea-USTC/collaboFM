@@ -50,6 +50,7 @@ def extend_training_cfg(cfg):
     cfg.tqn_train.tqn_optimizer=CN(new_allowed=True)
     cfg.tqn_train.tau = 200
     cfg.tqn_train.mu=0.05
+    cfg.tqn_train.epoch_list = [1,1,1]
 
     # --------------- register corresponding check function ----------
     cfg.register_cfg_check_fun(assert_training_cfg)

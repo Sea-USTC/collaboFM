@@ -73,6 +73,8 @@ class Client_Manager_base():
                 self.clients[idx_list[i]].test_idx=test_idx_dict[i]
                 site_train_x, site_train_y=\
                     np.array(self.train_x)[train_idx_dict[i]], np.array(self.train_y)[train_idx_dict[i]]
+                # logger.info(len(site_train_x))
+                # logger.info(len(site_train_y))
                 site_test_x, site_test_y=\
                     np.array(self.test_x)[test_idx_dict[i]], np.array(self.test_y)[test_idx_dict[i]]
                 self.clients[idx_list[i]].train_ds=build_ds(site_train_x,site_train_y)
