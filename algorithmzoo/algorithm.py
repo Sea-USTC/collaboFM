@@ -4,6 +4,8 @@ import logging
 from collaboFM.algorithmzoo.fedavg import FedAvg
 from collaboFM.algorithmzoo.collabo import collabo
 from collaboFM.algorithmzoo.local import local_baseline
+from collaboFM.algorithmzoo.fedclip import fedclip
+from collaboFM.algorithmzoo.cliptqn import cliptqn
 from collaboFM.data.label_name import get_label_name
 from collaboFM.data.dataset import get_mean_std
 from tqdm import tqdm
@@ -69,7 +71,10 @@ class Algorithm_Manager():
                 self.run_colla_train()
         elif method == "collabo_wo_tqn":
             self.run_colla_train_vit_head()
-    
+        elif method == "fedclip":
+            self.run_fedclip()
+        elif method == "cliptqn":
+            self.run_cliptqn()
     
     def run_fl(self):
         self.algorithm=FedAvg(self.cfg)
@@ -116,11 +121,14 @@ class Algorithm_Manager():
                 loss,acc=self.evaluate(self.server.net,round_idx)
 
     def run_local(self):
+        from torchvision import transforms
+        from sklearn.metrics import accuracy_score
+        from torch.nn import CrossEntropyLoss
         self.algorithm=local_baseline(self.cfg)
         for dataset_name, client_list in self.client_manager.dataset2idx.items():
+            normalize = get_mean_std(dataset_name)
             for round_idx in range(self.n_rounds):
                 logger.info(f"-------------Round #{round_idx} start---------------")
-                client_list=[0]
                 for client_idx in client_list:
                     if(self.cfg.data.load_all_dataset):
                         this_train_dl=self.client_manager.clients[client_idx].train_dl
@@ -131,10 +139,9 @@ class Algorithm_Manager():
                                 train_batchsize=self.cfg.train.batchsize,\
                                 test_batchsize=self.cfg.eval.batchsize,num_workers=8)
                     net=self.client_manager.clients[client_idx].net
-                    criterion=build_criterion(self.cfg.criterion).cuda()
+                    criterion=CrossEntropyLoss(reduction='sum').cuda()
                     optimizer=build_optimizer(net,self.cfg.train.optimizer,round_idx)
-                    net=nn.DataParallel(net.to(f"cuda:{self.cfg.gpus[0]}"), device_ids=self.cfg.gpus, output_device=self.cfg.gpus[0])
-                    #net.cuda()
+                    net.cuda()
                     #logger.info(torch.cuda.memory_summary(device=0))
                     for epoch in range(self.training_epochs):                    
                         net.train()
@@ -146,7 +153,36 @@ class Algorithm_Manager():
                         logger.info(f"train acc:{acc} train loss:{loss}")
                         loss,acc=self.algorithm.evaluate(net,this_test_dl,criterion)
                         logger.info(f"test acc:{acc} test loss:{loss}")
-
+                        ### out test acc
+                        true_labels_list, pred_labels_list = np.array([]), np.array([])
+                        loss_collector = []
+                        for i in client_list:
+                            if i == client_idx:
+                                continue
+                            _, all_test_dl=\
+                            self.client_manager.create_one_dataset_test(self.client_manager.clients[i],\
+                                train_batchsize=self.cfg.train.batchsize,\
+                                test_batchsize=self.cfg.eval.batchsize,num_workers=8)
+                            for batch_idx, (batch_x, batch_y) in enumerate(all_test_dl):
+                                transform_train = transforms.Compose([
+                                        normalize
+                                    ])
+                                with torch.no_grad():
+                                    batch_x = batch_x.cuda()
+                                    batch_x = transform_train(batch_x)
+                                    batch_x = batch_x.cuda()
+                                    batch_y = batch_y.cuda()
+                                    out = net(batch_x)
+                                    _, pred_label = torch.max(out.data, -1)
+                                    loss = criterion(out, batch_y)
+                                    loss_collector.append(loss.item())
+                                    pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
+                                    true_labels_list = np.append(true_labels_list, batch_y.data.cpu().numpy())
+                            # logger.info(len(true_labels_list))
+                        loss = sum(loss_collector) / len(true_labels_list)
+                        logger.info(len(true_labels_list))
+                        acc=accuracy_score(true_labels_list,pred_labels_list)
+                        logger.info(f"out test acc:{acc} out test loss:{loss}")
 
     def run_with_clip(self):
         self.algorithm=collabo(self.cfg)
@@ -355,13 +391,24 @@ class Algorithm_Manager():
                         loss = sum(loss_collector) / len(true_labels_list)
                         acc=accuracy_score(true_labels_list,pred_labels_list)
                         logger.info(f"test acc:{acc} test loss:{loss}")
-     
+    
+    def run_fedclip(self):
+        self.algorithm = fedclip(self.cfg, self.client_manager)
+        self.algorithm.run()
+
+    def run_cliptqn(self):
+        self.algorithm = cliptqn(self.cfg, self.client_manager)
+        self.algorithm.run()
+
     def run_local_vit(self):
+        from torchvision import transforms
+        from sklearn.metrics import accuracy_score
+        from torch.nn import CrossEntropyLoss
         self.algorithm=local_baseline(self.cfg)
         for dataset_name, client_list in self.client_manager.dataset2idx.items():
+            normalize = get_mean_std(dataset_name)
             for round_idx in range(self.n_rounds):
                 logger.info(f"-------------Round #{round_idx} start---------------")
-                # client_list=[0]
                 for client_idx in client_list:
                     if(self.cfg.data.load_all_dataset):
                         this_train_dl=self.client_manager.clients[client_idx].train_dl
@@ -373,7 +420,7 @@ class Algorithm_Manager():
                                 test_batchsize=self.cfg.eval.batchsize,num_workers=8)
                     net=self.client_manager.clients[client_idx].net
                     from math import sqrt
-                    criterion=build_criterion(self.cfg.criterion).cuda()
+                    criterion=CrossEntropyLoss(reduction='sum').cuda()
                     optimizer=build_optimizer(net.parameters(),self.cfg.tqn_train.tqn_optimizer,sqrt(round_idx))
                     #net=nn.DataParallel(net.to(f"cuda:{self.cfg.gpus[0]}"), device_ids=self.cfg.gpus, output_device=self.cfg.gpus[0])
                     net.cuda()
@@ -388,6 +435,37 @@ class Algorithm_Manager():
                         logger.info(f"train acc:{acc} train loss:{loss}")
                         loss,acc=self.algorithm.evaluate(net,this_test_dl,criterion)
                         logger.info(f"test acc:{acc} test loss:{loss}")
+                        ### out test acc
+                        true_labels_list, pred_labels_list = np.array([]), np.array([])
+                        loss_collector = []
+                        for i in client_list:
+                            if i == client_idx:
+                                continue
+                            _, all_test_dl=\
+                            self.client_manager.create_one_dataset_test(self.client_manager.clients[i],\
+                                train_batchsize=self.cfg.train.batchsize,\
+                                test_batchsize=self.cfg.eval.batchsize,num_workers=8)
+                            for batch_idx, (batch_x, batch_y) in enumerate(all_test_dl):
+                                transform_train = transforms.Compose([
+                                        normalize
+                                    ])
+                                with torch.no_grad():
+                                    batch_x = batch_x.cuda()
+                                    batch_x = transform_train(batch_x)
+                                    batch_x = batch_x.cuda()
+                                    batch_y = batch_y.cuda()
+                                    out = net(batch_x)
+                                    _, pred_label = torch.max(out.data, -1)
+                                    loss = criterion(out, batch_y)
+                                    loss_collector.append(loss.item())
+                                    pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
+                                    true_labels_list = np.append(true_labels_list, batch_y.data.cpu().numpy())
+                            # logger.info(len(true_labels_list))
+                        loss = sum(loss_collector) / len(true_labels_list)
+                        logger.info(pred_labels_list[500:530])
+                        logger.info(true_labels_list[500:530])
+                        acc=accuracy_score(true_labels_list,pred_labels_list)
+                        logger.info(f"out test acc:{acc} out test loss:{loss}")
 
     def run_colla_train_vit(self):
         import torchvision.transforms as transforms
@@ -560,53 +638,54 @@ class Algorithm_Manager():
                         acc=accuracy_score(true_labels_list,pred_labels_list)
                         logger.info(f"test acc:{acc} test loss:{loss}")
                         # outerior test acc
-                        true_labels_list, pred_labels_list = np.array([]), np.array([])
-                        loss_collector = []
-                        for i in client_list:
-                            if i == client_idx:
-                                continue
-                            _, all_test_dl=\
-                            self.client_manager.create_one_dataset_test(self.client_manager.clients[i],\
-                                train_batchsize=self.cfg.train.batchsize,\
-                                test_batchsize=self.cfg.eval.batchsize,num_workers=8)
-                            for batch_idx, (batch_x, batch_y) in enumerate(all_test_dl):
-                                transform_train = transforms.Compose([
-                                        normalize
-                                    ])
-                                with torch.no_grad():
-                                    batch_x = batch_x.cuda()
-                                    batch_x = transform_train(batch_x)
-                                    N=batch_y.shape[0]
-                                    batch_x = batch_x.cuda()
-                                    batch_y = batch_y.cuda()
-                                    batch_y_bce = torch.nn.functional.one_hot(
-                                        torch.nn.functional.one_hot(batch_y,num_classes=label2repre.shape[0])).float()
-                                    label2repre = label2repre.float().cuda()
-                                    features = net.forward_with_feature(batch_x)[1]
-                                    features = features.unsqueeze(1)
-                                    out = tqn(features, label2repre)##magic_num 1
-                                    _, pred_label = torch.max(torch.squeeze(out[:,:,1]), -1)
-                                    loss = - (torch.log_softmax(out,dim=-1)*batch_y_bce).flatten(0).sum()/label2repre.shape[0]
-                                    loss_collector.append(loss.item())
-                                    pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
-                                    true_labels_list = np.append(true_labels_list, batch_y.data.cpu().numpy())
-                            # logger.info(len(true_labels_list))
-                        loss = sum(loss_collector) / len(true_labels_list)
-                        logger.info(len(true_labels_list))
-                        acc=accuracy_score(true_labels_list,pred_labels_list)
-                        logger.info(f"out test acc:{acc} out test loss:{loss}")
+                        # true_labels_list, pred_labels_list = np.array([]), np.array([])
+                        # loss_collector = []
+                        # for i in client_list:
+                        #     if i == client_idx:
+                        #         continue
+                        #     _, all_test_dl=\
+                        #     self.client_manager.create_one_dataset_test(self.client_manager.clients[i],\
+                        #         train_batchsize=self.cfg.train.batchsize,\
+                        #         test_batchsize=self.cfg.eval.batchsize,num_workers=8)
+                        #     for batch_idx, (batch_x, batch_y) in enumerate(all_test_dl):
+                        #         transform_train = transforms.Compose([
+                        #                 normalize
+                        #             ])
+                        #         with torch.no_grad():
+                        #             batch_x = batch_x.cuda()
+                        #             batch_x = transform_train(batch_x)
+                        #             N=batch_y.shape[0]
+                        #             batch_x = batch_x.cuda()
+                        #             batch_y = batch_y.cuda()
+                        #             batch_y_bce = torch.nn.functional.one_hot(
+                        #                 torch.nn.functional.one_hot(batch_y,num_classes=label2repre.shape[0])).float()
+                        #             label2repre = label2repre.float().cuda()
+                        #             features = net.forward_with_feature(batch_x)[1]
+                        #             features = features.unsqueeze(1)
+                        #             out = tqn(features, label2repre)##magic_num 1
+                        #             _, pred_label = torch.max(torch.squeeze(out[:,:,1]), -1)
+                        #             loss = - (torch.log_softmax(out,dim=-1)*batch_y_bce).flatten(0).sum()/label2repre.shape[0]
+                        #             loss_collector.append(loss.item())
+                        #             pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
+                        #             true_labels_list = np.append(true_labels_list, batch_y.data.cpu().numpy())
+                        #     # logger.info(len(true_labels_list))
+                        # loss = sum(loss_collector) / len(true_labels_list)
+                        # logger.info(len(true_labels_list))
+                        # acc=accuracy_score(true_labels_list,pred_labels_list)
+                        # logger.info(f"out test acc:{acc} out test loss:{loss}")
                     tqn.to("cpu")
                 # parameter aggregation 
-                global_para = self.algorithm.tqn[0].state_dict()
-                for key in global_para:
-                    global_para[key] = global_para[key] * weights[0]/sum(weights)
-                for idx in range(1,self.client_manager.n_clients):
-                    net_para = self.algorithm.tqn[idx].state_dict()
-                    weight = weights[idx] / sum(weights)                       
-                    for key in net_para:
-                        global_para[key] += net_para[key] * weight
-                for idx in range(self.client_manager.n_clients):
-                    self.algorithm.tqn[idx].load_state_dict(global_para)
+                if self.cfg.fm.use:
+                    global_para = self.algorithm.tqn[0].state_dict()
+                    for key in global_para:
+                        global_para[key] = global_para[key] * weights[0]/sum(weights)
+                    for idx in range(1,self.client_manager.n_clients):
+                        net_para = self.algorithm.tqn[idx].state_dict()
+                        weight = weights[idx] / sum(weights)                       
+                        for key in net_para:
+                            global_para[key] += net_para[key] * weight
+                    for idx in range(self.client_manager.n_clients):
+                        self.algorithm.tqn[idx].load_state_dict(global_para)
                     
 
     def run_colla_train_vit_head(self):

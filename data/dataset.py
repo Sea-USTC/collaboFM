@@ -32,11 +32,24 @@ normalize4cifar10 = transforms.Normalize((0.4914,0.4822,0.4465),
                                          (0.2470,0.2435,0.2615))           
 normalize4food = transforms.Normalize((0.5450, 0.4435, 0.3436),
                                       (0.2709, 0.2735, 0.2781))
+normalize4clip = transforms.Normalize((0.48145466, 0.4578275, 0.40821073),
+                                      (0.26862954, 0.26130258, 0.27577711))
 # normalize4food = transforms.Normalize()
-def get_mean_std(dataset):
+def get_mean_std(dataset, method="woclip"):
+    if method in ["fedclip","cliptqn"]:
+        return normalize4clip
     if dataset == "cifar10":
         return normalize4cifar10
     elif dataset == "caltech101":
         return normalize4caltech
     elif dataset == "food101":
         return normalize4food
+
+def get_num_classes(dataset):
+    if dataset == "cifar10":
+        return 10
+    elif dataset == "caltech101":
+        return 101
+    elif dataset == "food101":
+        return 101
+    

@@ -10,11 +10,6 @@ def extend_model_cfg(cfg):
     # ---------------------------------------------------------------------- #
     cfg.model = CN()
     cfg.model.backbone = "ResNet18Cifar10"
-    cfg.model.hidden = 256
-    cfg.model.dropout = 0.5
-    cfg.model.in_channels = 0  # If 0, model will be built by data.shape
-    cfg.model.out_channels = 1
-    cfg.model.input_shape = ()  # A tuple, e.g., (in_channel, h, w)
 
     cfg.model.encoder_list=[]
     cfg.model.encoder_para_list=[]
@@ -24,17 +19,11 @@ def extend_model_cfg(cfg):
     # ---------------------------------------------------------------------- #
     # Criterion related options
     # ---------------------------------------------------------------------- #
-    cfg.criterion = CN()
-
-    cfg.criterion.type = 'cross_entropy'
 
     # ---------------------------------------------------------------------- #
     # regularizer related options
     # ---------------------------------------------------------------------- #
-    cfg.regularizer = CN()
 
-    cfg.regularizer.type = ''
-    cfg.regularizer.mu = 0.
 
     # --------------- register corresponding check function ----------
     cfg.register_cfg_check_fun(assert_model_cfg)

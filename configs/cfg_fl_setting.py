@@ -12,15 +12,11 @@ def extend_fl_setting_cfg(cfg):
     # ---------------------------------------------------------------------- #
     cfg.federate = CN()
 
-    cfg.federate.generic_fl_eval=False
     cfg.federate.use_hetero_model=False
     cfg.federate.client_num = 0
     cfg.federate.sample_client_num = -1
-    cfg.federate.sample_mode="random"
     cfg.federate.total_round_num = 50
     cfg.federate.method = "FedAvg"
-    cfg.federate.restore_from = ''
-    cfg.federate.save_to = ''
     
     cfg.client_resource=CN()
     cfg.client_resource.dataset=CN(new_allowed=True)
@@ -32,7 +28,6 @@ def extend_fl_setting_cfg(cfg):
 
     cfg.fm=CN()
     cfg.fm.use=False
-    cfg.fm.llm="clip"
     # --------------- register corresponding check function ----------
     cfg.register_cfg_check_fun(assert_fl_setting_cfg)
 

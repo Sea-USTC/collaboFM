@@ -51,8 +51,9 @@ class TransformerDecoder(nn.Module):
 
 class TransformerDecoderLayer(nn.Module):
     def __init__(self, d_model, nhead, dim_feedforward=1024, dropout=0.1,
-                 activation="relu", normalize_before=False):
+                 activation="relu", normalize_before=False,use_self_attn=True):
         super().__init__()
+        self.use_self_attn = use_self_attn
         self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
         self.multihead_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
         # Implementation of Feedforward model
@@ -110,12 +111,13 @@ class TransformerDecoderLayer(nn.Module):
                     memory_key_padding_mask: Optional[Tensor] = None,
                     pos: Optional[Tensor] = None,
                     query_pos: Optional[Tensor] = None):
-        tgt2 = self.norm1(tgt)
-        q = k = self.with_pos_embed(tgt2, query_pos)
-        tgt2,ws = self.self_attn(q, k, value=tgt2, attn_mask=tgt_mask,
-                              key_padding_mask=tgt_key_padding_mask)
-        # print('self atten',ws.shape)
-        tgt = tgt + self.dropout1(tgt2)
+        if self.use_self_attn:
+            tgt2 = self.norm1(tgt)
+            q = k = self.with_pos_embed(tgt2, query_pos)
+            tgt2,ws = self.self_attn(q, k, value=tgt2, attn_mask=tgt_mask,
+                                key_padding_mask=tgt_key_padding_mask)
+            # print('self atten',ws.shape)
+            tgt = tgt + self.dropout1(tgt2)
         tgt2 = self.norm2(tgt)
         tgt2,attn_weights = self.multihead_attn(query=self.with_pos_embed(tgt2, query_pos),
                                    key=self.with_pos_embed(memory, pos),
@@ -163,14 +165,16 @@ class TQN_Model(nn.Module):
     def __init__(self, 
             embed_dim: int = 768, 
             class_num: int = 2, 
+            model_cfg = None
             ):
         super().__init__()
+        self.model_cfg = model_cfg
         self.d_model = embed_dim
         self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
-        decoder_layer = TransformerDecoderLayer(self.d_model, 4, 1024,
+        decoder_layer = TransformerDecoderLayer(self.d_model, model_cfg.head_num, 1024,
                                         0.1, 'relu',normalize_before=True)
         self.decoder_norm = nn.LayerNorm(self.d_model)
-        self.decoder = TransformerDecoder(decoder_layer, 4, self.decoder_norm,
+        self.decoder = TransformerDecoder(decoder_layer, model_cfg.layernum, self.decoder_norm,
                                 return_intermediate=False)
         self.dropout_feas = nn.Dropout(0.1)
 

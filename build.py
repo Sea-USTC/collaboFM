@@ -51,8 +51,9 @@ def build_client_model(client_id, cfg):
     else:
         cfg_dict=cfg.model    
         model_name=getattr(cfg_dict, "backbone").lower()
-    if "clip" in model_name:
-        return model_clip(model_name=model_name)
+    algorithm = cfg.federate.method.lower()
+
+    
     encoder_list=getattr(cfg_dict, "encoder_list")
     encoder_para_list=getattr(cfg_dict, "encoder_para_list")
     head_list=getattr(cfg_dict, "head_list")
@@ -62,6 +63,11 @@ def build_client_model(client_id, cfg):
         encoder_para_list=encoder_para_list[str(client_id)]
         head_list=head_list[str(client_id)]
         head_para_list=head_para_list[str(client_id)]
+    if algorithm == "fedclip":
+        if "clip" in model_name:
+            return model_fedclip(model_name=model_name,encoder_list=encoder_list, encoder_para_list=encoder_para_list)
+    if algorithm == "cliptqn":
+        return model_cliptqn()
     if "cifar" in model_name:
         return model_cifar(model_name=model_name, encoder_list=encoder_list, encoder_para_list=encoder_para_list, \
         head_list=head_list,head_para_list=head_para_list)

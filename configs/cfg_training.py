@@ -8,19 +8,10 @@ def extend_training_cfg(cfg):
     # ---------------------------------------------------------------------- #
     # Trainer related options
     # ---------------------------------------------------------------------- #
-    cfg.trainer = CN()
-
-    cfg.trainer.type = 'general'
-
-    cfg.trainer.sam = CN()
-    cfg.trainer.sam.adaptive = False
-    cfg.trainer.sam.rho = 1.0
-    cfg.trainer.sam.eta = .0
 
     cfg.train = CN()
 
     cfg.train.local_update_steps = 1
-    cfg.train.batch_or_epoch = 'batch'
     cfg.train.batchsize = 128
 
     cfg.train.optimizer = CN(new_allowed=True)
@@ -31,27 +22,27 @@ def extend_training_cfg(cfg):
 
 
     # you can add new arguments 'aa' by `cfg.train.scheduler.aa = 'bb'`
-    cfg.train.scheduler = CN(new_allowed=True)
-    cfg.train.scheduler.type = ''
-    cfg.train.scheduler.warmup_ratio = 0.0
 
     # ---------------------------------------------------------------------- #
     # Gradient related options
     # ---------------------------------------------------------------------- #
     cfg.grad = CN()
     cfg.grad.grad_clip = -1.0  # negative numbers indicate we do not clip grad
-    cfg.grad.grad_accum_count = 1
 
     # ---------------------------------------------------------------------- #
     # Early stopping related options
     # ---------------------------------------------------------------------- #
-    cfg.tqn_train=CN()
-    cfg.tqn_train.key_train_round=20
-    cfg.tqn_train.tqn_optimizer=CN(new_allowed=True)
-    cfg.tqn_train.tau = 200
-    cfg.tqn_train.mu=0.05
-    cfg.tqn_train.epoch_list = [1,1,1]
+    cfg.collabo_tqn=CN()
+    cfg.collabo_tqn.key_train_round=20
+    cfg.collabo_tqn.tau = 200
+    cfg.collabo_tqn.mu=0.05
+    cfg.collabo_tqn.epoch_list = [1,1,1]
 
+    cfg.tqn_model=CN()
+    cfg.tqn_model.layernum = 4
+    cfg.tqn_model.selfatt = True
+    cfg.tqn_model.weight_true = 0.5
+    cfg.tqn_model.head_num = 16
     # --------------- register corresponding check function ----------
     cfg.register_cfg_check_fun(assert_training_cfg)
 

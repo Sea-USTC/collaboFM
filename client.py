@@ -141,6 +141,22 @@ class Client_Manager_base():
     
     # load models of all clients in RAM
     def create_all_models(self):
+        from collaboFM import clip
+        if self.cfg.federate.method.lower() in ["fedclip", "cliptqn"]:
+            model_name = self.cfg.client_resource.backbone["0"].lower()
+            if model_name == "clip_rn50":
+                path = "/mnt/workspace/zqfan/foundation/ckpt/RN50.pt"
+            elif model_name == "clip_rn50x4":
+                path = "/mnt/workspace/zqfan/foundation/ckpt/RN50x4.pt"
+            elif model_name == "clip_rn50x16":
+                path = "/mnt/workspace/zqfan/foundation/ckpt/RN50x16.pt"
+            elif model_name == "clip_rn101":
+                path = "/mnt/workspace/zqfan/foundation/ckpt/RN101.pt"
+            elif model_name == "clip_vit16":
+                path = "/mnt/workspace/zqfan/foundation/ckpt/ViT-B-16.pt"
+            elif model_name == "clip_vit32":
+                path = "/mnt/workspace/zqfan/foundation/ckpt/ViT-B-32.pt"
+            self.clip_model, preprocess = clip.load(path, device="cpu")
         for i in range(self.n_clients):
             self.clients[i].net=build_client_model(i, self.cfg)
 

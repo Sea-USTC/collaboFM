@@ -11,7 +11,6 @@ def extend_evaluation_cfg(cfg):
     cfg.eval = CN(
         new_allowed=True)  # allow user to add their settings under `cfg.eval`
 
-    cfg.eval.freq = 1
     cfg.eval.batchsize = 128
     # --------------- register corresponding check function ----------
     cfg.register_cfg_check_fun(assert_evaluation_cfg)
